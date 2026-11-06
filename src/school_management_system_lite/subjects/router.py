@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Path, status
@@ -5,6 +6,7 @@ from fastapi import APIRouter, Path, status
 from school_management_system_lite.core.dependencies import db_session_dependency
 from school_management_system_lite.subjects.schemas import (
     CreateSubject,
+    SubjectResponseBase,
     SubjectResponseDetailed,
     UpdateSubject,
 )
@@ -53,3 +55,21 @@ async def restore_subject(
     subject_id: Annotated[int, Path(ge=1)],
 ):
     await SubjectService.restore_subject(db_session, subject_id)
+
+
+@router.get(
+    "", response_model=Sequence[SubjectResponseBase], status_code=status.HTTP_200_OK
+)
+async def get_subjects(db_session: db_session_dependency):
+    return await SubjectService.get_subjects(db_session)
+
+
+@router.get(
+    "/{subject_id}",
+    response_model=SubjectResponseDetailed,
+    status_code=status.HTTP_200_OK,
+)
+async def get_subject(
+    db_session: db_session_dependency, subject_id: Annotated[int, Path(ge=1)]
+):
+    return await SubjectService.get_subject(db_session, subject_id)

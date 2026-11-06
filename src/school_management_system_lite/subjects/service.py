@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from sqlalchemy.exc import IntegrityError
@@ -90,3 +91,15 @@ class SubjectService:
         subject.archived_at = None
 
         await db_session.commit()
+
+    @staticmethod
+    async def get_subjects(db_session: AsyncSession) -> Sequence[Subject]:
+        return await SubjectRepository.get_subjects(db_session)
+
+    @staticmethod
+    async def get_subject(db_session: AsyncSession, subject_id: int) -> Subject:
+        subject = await SubjectRepository.get_by_id(db_session, subject_id)
+        if subject is None:
+            raise SubjectNotFoundError()
+
+        return subject
