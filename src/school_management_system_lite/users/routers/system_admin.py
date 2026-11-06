@@ -1,8 +1,11 @@
-from fastapi import APIRouter, status
+from typing import Annotated
+
+from fastapi import APIRouter, Path, status
 
 from school_management_system_lite.core.dependencies import db_session_dependency
 from school_management_system_lite.users.schemas.system_admin import (
     CreateUserAdmin,
+    UpdateUserAdmin,
     UserResponseDetailedAdmin,
 )
 from school_management_system_lite.users.services.system_admin import UserServiceAdmin
@@ -21,3 +24,16 @@ async def register_user(
     payload: CreateUserAdmin,
 ):
     return await UserServiceAdmin.register_user(db_session, payload)
+
+
+@router.patch(
+    "/{user_id}",
+    response_model=UserResponseDetailedAdmin,
+    status_code=status.HTTP_200_OK,
+)
+async def update_user(
+    db_session: db_session_dependency,
+    user_id: Annotated[int, Path(ge=1)],
+    payload: UpdateUserAdmin,
+):
+    return await UserServiceAdmin.update_user(db_session, user_id, payload)

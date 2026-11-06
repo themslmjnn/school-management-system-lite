@@ -3,8 +3,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from school_management_system_lite.core.security import hash_password
 from school_management_system_lite.users.models.user import User
-from school_management_system_lite.users.schemas.system_admin import CreateUserAdmin
+from school_management_system_lite.users.repositories.system_admin import (
+    UserRepositoryAdmin,
+)
+from school_management_system_lite.users.schemas.system_admin import (
+    CreateUserAdmin,
+    UpdateUserAdmin,
+)
 from school_management_system_lite.users.utils.exceptions import (
+    UserNotFoundError,
     handle_email_integrity_error,
     handle_phone_number_integrity_error,
 )
@@ -44,3 +51,31 @@ class UserServiceAdmin:
             raise
 
         return new_user
+
+    @staticmethod
+    async def update_user(
+        db_session: AsyncSession, user_id: int, payload: UpdateUserAdmin
+    ) -> User:
+        user = await UserRepositoryAdmin.get_by_id(db_session, user_id)
+        if user is None:
+            raise UserNotFoundError()
+
+        try:
+            for field, value in payload.model_dump(exclude_unset=True).items():
+                if field == "password":
+                    user.password_hash = hash_password(value)
+
+                setattr(user, field, value)
+
+            await db_session.commit()
+            await db_session.refresh(user)
+
+        except IntegrityError as exc:
+            await db_session.rollback()
+
+            handle_phone_number_integrity_error(exc)
+            handle_email_integrity_error(exc)
+
+            raise
+
+        return user
