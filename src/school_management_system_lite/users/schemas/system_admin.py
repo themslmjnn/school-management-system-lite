@@ -11,7 +11,7 @@ class UserResponseBaseAdmin(UserResponseBase):
     status: UserStatus
 
 
-class UserResponseDetailedAdmin(UserResponseBase):
+class UserResponseDetailedAdmin(UserResponseBaseAdmin):
     date_of_birth: date
     address: str | None
     phone_number: str

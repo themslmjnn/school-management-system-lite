@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -109,5 +111,13 @@ class UserServiceAdmin:
         await db_session.commit()
 
     @staticmethod
-    async def get_users(db_session: AsyncSession) -> User:
+    async def get_users(db_session: AsyncSession) -> Sequence[User]:
         return await UserRepositoryAdmin.get_users(db_session)
+
+    @staticmethod
+    async def get_user(db_session: AsyncSession, user_id: int) -> User:
+        user = await UserRepositoryAdmin.get_by_id(db_session, user_id)
+        if user is None:
+            raise UserNotFoundError()
+
+        return user

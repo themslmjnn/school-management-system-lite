@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, Path, status
@@ -57,7 +58,16 @@ async def activate_user(
 
 
 @router.get(
-    "", response_model=list[UserResponseBaseAdmin], status_code=status.HTTP_200_OK
+    "", response_model=Sequence[UserResponseBaseAdmin], status_code=status.HTTP_200_OK
 )
 async def get_users(db_session: db_session_dependency):
     return await UserServiceAdmin.get_users(db_session)
+
+
+@router.get(
+    "/{user_id}",
+    response_model=UserResponseDetailedAdmin,
+    status_code=status.HTTP_200_OK,
+)
+async def get_user(db_session: db_session_dependency, user_id: int):
+    return await UserServiceAdmin.get_user(db_session, user_id)

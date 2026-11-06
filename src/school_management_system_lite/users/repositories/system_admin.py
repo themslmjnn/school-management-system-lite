@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +16,7 @@ class UserRepositoryAdmin:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_users(db_session: AsyncSession) -> list[User]:
+    async def get_users(db_session: AsyncSession) -> Sequence[User]:
         query = select(User)
 
         result = await db_session.execute(query)
