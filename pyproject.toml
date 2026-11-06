@@ -1,0 +1,18 @@
+[project]
+name = "school-management-system-lite"
+version = "0.1.0"
+description = "School Management System Lite"
+readme = "README.md"
+authors = [
+    { name = "Muslimjon", email = "mnvrv.mm@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "asyncpg>=0.32.0",
+    "fastapi[standard]>=0.162.0",
+    "sqlalchemy>=2.1.8",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
