@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-import school_management_system_lite.models
+import school_management_system_lite.models  # noqa: F401
 from school_management_system_lite.core.config import get_settings
 from school_management_system_lite.database.base import Base
 
@@ -14,7 +14,7 @@ from school_management_system_lite.database.base import Base
 # access to the values within the .ini file in use.
 config = context.config
 
-config.set_main_option("sqlalchmey.url", get_settings().DATABASE_URL)
+config.set_main_option("sqlalchemy.url", get_settings().DATABASE_URL)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
