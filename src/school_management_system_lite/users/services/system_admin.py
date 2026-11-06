@@ -11,6 +11,7 @@ from school_management_system_lite.users.schemas.system_admin import (
     UpdateUserAdmin,
 )
 from school_management_system_lite.users.utils.exceptions import (
+    UserAlreadyInactive,
     UserNotFoundError,
     handle_email_integrity_error,
     handle_phone_number_integrity_error,
@@ -79,3 +80,16 @@ class UserServiceAdmin:
             raise
 
         return user
+
+    @staticmethod
+    async def deactivate_user(db_session: AsyncSession, user_id: int) -> None:
+        user = await UserRepositoryAdmin.get_by_id(db_session, user_id)
+        if user is None:
+            raise UserNotFoundError()
+
+        if user.status == UserStatus.INACTIVE:
+            raise UserAlreadyInactive()
+
+        user.status = UserStatus.INACTIVE
+
+        await db_session.commit()

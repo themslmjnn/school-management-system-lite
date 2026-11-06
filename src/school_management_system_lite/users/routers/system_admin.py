@@ -37,3 +37,11 @@ async def update_user(
     payload: UpdateUserAdmin,
 ):
     return await UserServiceAdmin.update_user(db_session, user_id, payload)
+
+
+@router.patch("/{user_id}/deactivation", status_code=status.HTTP_204_NO_CONTENT)
+async def deactivate_user(
+    db_session: db_session_dependency,
+    user_id: Annotated[int, Path(ge=1)],
+):
+    await UserServiceAdmin.deactivate_user(db_session, user_id)
