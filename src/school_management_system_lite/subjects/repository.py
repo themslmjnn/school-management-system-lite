@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,3 +14,11 @@ class SubjectRepository:
         result = await db_session.execute(query)
 
         return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_subjects(db_session: AsyncSession) -> Sequence[Subject]:
+        query = select(Subject)
+
+        result = await db_session.execute(query)
+
+        return result.scalars().all()
