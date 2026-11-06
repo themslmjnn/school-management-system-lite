@@ -24,6 +24,18 @@ class EmailAlreadyTakenError(AppException):
     error_code = "EMAIL_ALREADY_TAKEN"
 
 
+class UserAlreadyInactive(AppException):
+    status_code = status.HTTP_409_CONFLICT
+    detail = "User already inactive"
+    error_code = "USER_ALREADY_INACTIVE"
+
+
+class UserAlreadyActive(AppException):
+    status_code = status.HTTP_409_CONFLICT
+    detail = "User already active"
+    error_code = "USER_ALREADY_ACTIVE"
+
+
 # EXCEPTION HANDLERS
 def handle_phone_number_integrity_error(exc: IntegrityError) -> None:
     if "uq_users_phone_number" in str(exc.orig):
