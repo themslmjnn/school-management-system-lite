@@ -37,3 +37,19 @@ async def update_subject(
     payload: UpdateSubject,
 ):
     return await SubjectService.update_subject(db_session, subject_id, payload)
+
+
+@router.patch("/{subject_id}/archive", status_code=status.HTTP_204_NO_CONTENT)
+async def archive_subject(
+    db_session: db_session_dependency,
+    subject_id: Annotated[int, Path(ge=1)],
+):
+    await SubjectService.archive_subject(db_session, subject_id)
+
+
+@router.patch("/{subject_id}/restore", status_code=status.HTTP_204_NO_CONTENT)
+async def restore_subject(
+    db_session: db_session_dependency,
+    subject_id: Annotated[int, Path(ge=1)],
+):
+    await SubjectService.restore_subject(db_session, subject_id)
