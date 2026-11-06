@@ -11,6 +11,9 @@ from school_management_system_lite.database.connection import (
     build_engine,
     build_session_factory,
 )
+from school_management_system_lite.subjects.router import (
+    router as subjects_module_routers,
+)
 from school_management_system_lite.users.routers import router as users_module_routers
 
 
@@ -72,6 +75,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # ROUTERS
     app.include_router(users_module_routers)
+    app.include_router(subjects_module_routers)
 
     return app
 
