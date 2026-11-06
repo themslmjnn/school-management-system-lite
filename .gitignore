@@ -5,3 +5,8 @@
 # dev
 .ruff_cache/
 .mypy_cache/
+
+# env files
+.env
+.env.*
+!.env.example
