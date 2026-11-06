@@ -12,3 +12,11 @@ class UserRepositoryAdmin:
         result = await db_session.execute(query)
 
         return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_users(db_session: AsyncSession) -> list[User]:
+        query = select(User)
+
+        result = await db_session.execute(query)
+
+        return result.scalars().all()
