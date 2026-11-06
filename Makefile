@@ -1,3 +1,6 @@
+dev:
+	uv run uvicorn school_management_system_lite.main:app --reload
+
 format:
 	uv run ruff format .
 
