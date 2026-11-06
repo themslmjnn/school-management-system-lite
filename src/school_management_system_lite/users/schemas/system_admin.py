@@ -29,3 +29,15 @@ class CreateUserAdmin(BaseModel):
     email: str = Field(max_length=50)
     role: UserRole
     password: str = Field(min_length=8)
+
+
+class UpdateUserAdmin(BaseModel):
+    first_name: str | None = Field(min_length=3, max_length=30, default=None)
+    last_name: str | None = Field(min_length=3, max_length=30, default=None)
+    middle_name: str | None = Field(min_length=3, max_length=30, default=None)
+    date_of_birth: date | None = None
+    address: str | None = Field(max_length=150, default=None)
+    phone_number: str | None = Field(max_length=20, default=None)
+    email: str | None = Field(max_length=50, default=None)
+    role: UserRole | None = None
+    password: str | None = Field(min_length=8, default=None)
