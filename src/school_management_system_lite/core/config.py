@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     DB_PASSWORD: SecretStr
     DB_NAME: NonEmptyStr
 
+    DB_POOL_TIMEOUT: int = Field(ge=1, le=30, default=5)
+    DB_CONNECT_TIMEOUT: int = Field(ge=1, le=60, default=5)
+
     @property
     def DATABASE_URL(self) -> str:
         return (
