@@ -1,3 +1,7 @@
-
+# uv
 .venv/
 .uv/
+
+# dev
+.ruff_cache/
+.mypy_cache/
