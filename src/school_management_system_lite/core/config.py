@@ -1,4 +1,5 @@
 import os
+from functools import lru_cache
 from typing import Annotated, Literal
 from urllib.parse import quote
 
@@ -37,3 +38,8 @@ class Settings(BaseSettings):
             f":{quote(self.DB_PASSWORD.get_secret_value(), safe='')}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{quote(self.DB_NAME, safe='')}"
         )
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
