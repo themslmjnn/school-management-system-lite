@@ -9,3 +9,12 @@ lint:
 
 typecheck:
 	uv run mypy .
+
+mig-auto:
+	uv run alembic revision --autogenerate -m "$(m)"
+
+mig-empty:
+	uv run alembic revision -m "$(m)"
+
+migrate:
+	uv run alembic upgrade head
