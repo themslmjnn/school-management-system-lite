@@ -4,6 +4,13 @@ from sqlalchemy.exc import IntegrityError
 from school_management_system_lite.core.exceptions import AppException
 
 
+# HTTP404
+class UserNotFoundError(AppException):
+    status_code = status.HTTP_404_NOT_FOUND
+    detail = "User not found"
+    error_code = "USER_NOT_FOUND"
+
+
 # HTTP409
 class PhoneNumberAlreadyTakenError(AppException):
     status_code = status.HTTP_409_CONFLICT
