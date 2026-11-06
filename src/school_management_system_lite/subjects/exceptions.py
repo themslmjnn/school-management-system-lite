@@ -18,6 +18,18 @@ class SubjectCodeAlreadyTakenError(AppException):
     error_code = "SUBJECT_CODE_ALREADY_TAKEN"
 
 
+class SubjectAlreadyArchivedError(AppException):
+    status_code = status.HTTP_409_CONFLICT
+    detail = "Subject already archived"
+    error_code = "SUBJECT_ALREADY_ARCHIVED"
+
+
+class SubjectNotArchivedError(AppException):
+    status_code = status.HTTP_409_CONFLICT
+    detail = "Subject not archived"
+    error_code = "SUBJECT_NOT_ARCHIVED"
+
+
 def handle_subject_code_integrity_error(exc: IntegrityError) -> None:
     if "uq_subjects_code" in str(exc.orig):
         raise SubjectCodeAlreadyTakenError()
