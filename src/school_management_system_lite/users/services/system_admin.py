@@ -107,3 +107,7 @@ class UserServiceAdmin:
         user.status = UserStatus.ACTIVE
 
         await db_session.commit()
+
+    @staticmethod
+    async def get_users(db_session: AsyncSession) -> User:
+        return await UserRepositoryAdmin.get_users(db_session)

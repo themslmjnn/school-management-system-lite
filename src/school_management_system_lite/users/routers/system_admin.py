@@ -6,6 +6,7 @@ from school_management_system_lite.core.dependencies import db_session_dependenc
 from school_management_system_lite.users.schemas.system_admin import (
     CreateUserAdmin,
     UpdateUserAdmin,
+    UserResponseBaseAdmin,
     UserResponseDetailedAdmin,
 )
 from school_management_system_lite.users.services.system_admin import UserServiceAdmin
@@ -53,3 +54,10 @@ async def activate_user(
     user_id: Annotated[int, Path(ge=1)],
 ):
     await UserServiceAdmin.activate_user(db_session, user_id)
+
+
+@router.get(
+    "", response_model=list[UserResponseBaseAdmin], status_code=status.HTTP_200_OK
+)
+async def get_users(db_session: db_session_dependency):
+    return await UserServiceAdmin.get_users(db_session)
