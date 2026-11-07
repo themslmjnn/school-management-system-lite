@@ -12,3 +12,11 @@ class UserSessionRepository:
         result = await db_session.execute(query)
 
         return result.scalar_one()
+
+    @staticmethod
+    async def get_by_id(db_session: AsyncSession, session_id: int) -> UserSession:
+        query = select(UserSession).where(UserSession.id == session_id)
+
+        result = await db_session.execute(query)
+
+        return result.scalar_one()
