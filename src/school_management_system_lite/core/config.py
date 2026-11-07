@@ -3,7 +3,7 @@ from functools import lru_cache
 from typing import Annotated, Literal
 from urllib.parse import quote
 
-from pydantic import Field, SecretStr, StringConstraints
+from pydantic import Field, SecretStr, StringConstraints, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _ENV_FILE = ".env.test" if os.getenv("ENVIRONMENT", "development") == "test" else ".env"
@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     DB_POOL_TIMEOUT: int = Field(ge=1, le=30, default=5)
     DB_CONNECT_TIMEOUT: int = Field(ge=1, le=60, default=5)
 
+    JWT_ALGORITHM: str = "HS256"
+    JWT_SECRET_KEY: SecretStr
+
+    ACCESS_TOKEN_EXPIRES_MINUTES: int = Field(ge=15, le=60, default=30)
+    REFRESH_TOKEN_EXPIRES_DAYS: int = Field(ge=7, le=30, default=15)
+
+    COOKIE_SECURE: bool = False
+
     @property
     def DATABASE_URL(self) -> str:
         return (
@@ -38,6 +46,14 @@ class Settings(BaseSettings):
             f":{quote(self.DB_PASSWORD.get_secret_value(), safe='')}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{quote(self.DB_NAME, safe='')}"
         )
+
+    @field_validator("JWT_SECRET_KEY")
+    @classmethod
+    def validate_jwt_secret_key(cls, v: SecretStr) -> SecretStr:
+        if len(v.get_secret_value()) < 32:
+            raise ValueError("JWT_SECRET_KEY must be at least 32 characters")
+
+        return v
 
 
 @lru_cache
