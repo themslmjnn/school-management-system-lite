@@ -41,3 +41,14 @@ async def update_group(
 )
 async def get_groups(db_session: db_session_dependency):
     return await GroupService.get_groups(db_session)
+
+
+@router.get(
+    "/{group_id}",
+    response_model=GroupResponseDetailed,
+    status_code=status.HTTP_200_OK,
+)
+async def get_group(
+    db_session: db_session_dependency, group_id: Annotated[int, Path(ge=1)]
+):
+    return await GroupService.get_group(db_session, group_id)

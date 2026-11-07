@@ -61,3 +61,11 @@ class GroupService:
     @staticmethod
     async def get_groups(db_session: AsyncSession) -> Sequence[Group]:
         return await GroupRepository.get_groups(db_session)
+
+    @staticmethod
+    async def get_group(db_session: AsyncSession, group_id: int) -> Group:
+        group = await GroupRepository.get_by_id(db_session, group_id)
+        if group is None:
+            raise GroupNotFound()
+
+        return group
