@@ -75,3 +75,30 @@ def validate_date_of_birth_non_student(birth_date: date) -> date:
         max_age=NON_STUDENT_MAX_AGE,
         subject="User",
     )
+
+
+def validate_phone_number(phone_number: str) -> str:
+    phone_number = phone_number.strip()
+
+    if not phone_number.startswith("+"):
+        raise PydanticCustomError(
+            "invalid_phone_number",
+            "Phone number must start with '+'",
+        )
+
+    if phone_number.count("+") != 1:
+        raise PydanticCustomError(
+            "invalid_phone_number",
+            "Phone number must contain only one '+'",
+        )
+
+    if any(
+        not char.isdigit() and char != "+" and not char.isspace()
+        for char in phone_number
+    ):
+        raise PydanticCustomError(
+            "invalid_phone_number",
+            "Phone number may contain only '+', digits, and spaces",
+        )
+
+    return "".join(phone_number.split())
