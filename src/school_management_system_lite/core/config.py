@@ -37,6 +37,14 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRES_MINUTES: int = Field(ge=15, le=60, default=30)
     REFRESH_TOKEN_EXPIRES_DAYS: int = Field(ge=7, le=30, default=15)
 
+    RESEND_API_KEY: str
+    MAIL_FROM: str = "noreply@sms-lite.org"
+    MAIL_FROM_NAME: str = "SMS Lite"
+    MAILTRAP_HOST: str = "sandbox.smtp.mailtrap.io"
+    MAILTRAP_PORT: int = Field(ge=1, le=65535, default=587)
+    MAILTRAP_USERNAME: str | None = None
+    MAILTRAP_PASSWORD: SecretStr | None = None
+
     COOKIE_SECURE: bool = False
 
     @property
