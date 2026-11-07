@@ -1,7 +1,7 @@
 from datetime import date
 
-from sqlalchemy import Enum, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Enum, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from school_management_system_lite.database.base import Base
 from school_management_system_lite.utils.enums import UserRole, UserStatus
@@ -28,4 +28,17 @@ class User(Base):
         Enum(UserStatus),
         nullable=False,
         server_default=UserStatus.PENDING_ACTIVATION.name,
+    )
+
+    created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+
+    creator: Mapped["User | None"] = relationship(  # noqa: UP037
+        "User",
+        remote_side="User.id",
+        foreign_keys="[User.created_by]",
+        back_populates="created_users",
+    )
+
+    created_users: Mapped[list["User"]] = relationship(  # noqa: UP037
+        "User", foreign_keys="[User.created_by]", back_populates="creator"
     )
