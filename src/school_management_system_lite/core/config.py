@@ -22,6 +22,8 @@ class Settings(BaseSettings):
 
     ENVIRONMENT: Literal["development", "test"]
 
+    LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+
     DB_HOST: NonEmptyStr = "localhost"
     DB_PORT: int = Field(ge=1, le=65535, default=5432)
     DB_USER: NonEmptyStr
