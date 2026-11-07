@@ -67,6 +67,7 @@ class AuthService:
             user_id=user.id,
             role=user.role,
             access_token_version=user_session.access_token_version,
+            session_id=user_session.id,
             settings=settings,
         )
 
