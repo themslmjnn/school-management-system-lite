@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,7 +9,10 @@ from school_management_system_lite.groups.exceptions import (
 )
 from school_management_system_lite.groups.models import Group
 from school_management_system_lite.groups.repository import GroupRepository
-from school_management_system_lite.groups.schemas import CreateGroup, UpdateGroup
+from school_management_system_lite.groups.schemas import (
+    CreateGroup,
+    UpdateGroup,
+)
 
 
 class GroupService:
@@ -52,3 +57,7 @@ class GroupService:
             raise
 
         return group
+
+    @staticmethod
+    async def get_groups(db_session: AsyncSession) -> Sequence[Group]:
+        return await GroupRepository.get_groups(db_session)

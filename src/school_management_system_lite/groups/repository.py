@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,3 +14,11 @@ class GroupRepository:
         result = await db_session.execute(query)
 
         return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_groups(db_session: AsyncSession) -> Sequence[Group]:
+        query = select(Group)
+
+        result = await db_session.execute(query)
+
+        return result.scalars().all()
