@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from school_management_system_lite.auth.router import router as auth_module_routers
 from school_management_system_lite.core.config import Settings, get_settings
 from school_management_system_lite.core.exceptions import register_exception_handlers
+from school_management_system_lite.core.logging import configure_logging
 from school_management_system_lite.database.connection import (
     build_engine,
     build_session_factory,
@@ -67,6 +68,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """
 
     settings = settings or get_settings()
+
+    configure_logging(log_level=settings.LOG_LEVEL)
 
     app = FastAPI(lifespan=lifespan)
 
