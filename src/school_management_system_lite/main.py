@@ -65,7 +65,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
             name="email_worker",
         )
 
-        logger.info("email_worker_started")
         logger.info("application_ready")
 
         yield

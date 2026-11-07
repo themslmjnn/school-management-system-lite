@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
+import structlog
 from fastapi import Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +31,8 @@ from school_management_system_lite.users.utils.exceptions import (
     handle_phone_number_integrity_error,
 )
 from school_management_system_lite.utils.enums import UserStatus
+
+logger = structlog.get_logger(__name__)
 
 
 class UserServiceAdmin:
@@ -93,10 +96,25 @@ class UserServiceAdmin:
         except IntegrityError as exc:
             await db_session.rollback()
 
+            logger.warning(
+                "user_registration_failed",
+                failure_reason="integrity_error",
+                error=str(exc),
+                requested_by=actor_id,
+            )
+
             handle_phone_number_integrity_error(exc)
             handle_email_integrity_error(exc)
 
             raise
+
+        logger.info(
+            "user_registered",
+            user_id=user.id,
+            email=user.email,
+            role=user.role,
+            created_by=actor_id,
+        )
 
         return user
 
