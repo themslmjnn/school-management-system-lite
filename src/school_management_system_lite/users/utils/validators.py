@@ -102,3 +102,25 @@ def validate_phone_number(phone_number: str) -> str:
         )
 
     return "".join(phone_number.split())
+
+
+def validate_password(password: str) -> str:
+    if not any(c.isupper() for c in password):
+        raise PydanticCustomError(
+            "password_no_uppercase",
+            "Password must contain at least one uppercase letter",
+        )
+
+    if not any(c.isdigit() for c in password):
+        raise PydanticCustomError(
+            "password_no_digit",
+            "Password must contain at least one digit",
+        )
+
+    if not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password):
+        raise PydanticCustomError(
+            "password_no_special_character",
+            "Password must contain at least one special character",
+        )
+
+    return password
