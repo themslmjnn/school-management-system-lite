@@ -1,5 +1,5 @@
 import re
-from datetime import date
+from datetime import UTC, date, datetime
 
 from pydantic_core import PydanticCustomError
 
@@ -9,6 +9,7 @@ from school_management_system_lite.users.utils.constants import (
     STUDENT_MAX_AGE,
     STUDENT_MIN_AGE,
 )
+from school_management_system_lite.users.utils.helpers import calculate_age
 
 _NAME_PATTERN = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:['\-][A-Za-zÀ-ÖØ-öø-ÿ]+)*$")
 
