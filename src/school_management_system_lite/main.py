@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from school_management_system_lite.auth.router import router as auth_module_routers
 from school_management_system_lite.core.config import Settings, get_settings
 from school_management_system_lite.core.exceptions import register_exception_handlers
 from school_management_system_lite.database.connection import (
@@ -75,6 +76,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(app)
 
     # ROUTERS
+    app.include_router(auth_module_routers)
     app.include_router(users_module_routers)
     app.include_router(subjects_module_routers)
     app.include_router(groups_module_routers)
