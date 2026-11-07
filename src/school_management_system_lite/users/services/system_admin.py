@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from school_management_system_lite.auth.models.session import UserSession
 from school_management_system_lite.core.security import hash_password
 from school_management_system_lite.users.models.user import User
 from school_management_system_lite.users.repositories.system_admin import (
@@ -29,7 +30,7 @@ class UserServiceAdmin:
         payload: CreateUserAdmin,
     ) -> User:
         try:
-            new_user = User(
+            user = User(
                 first_name=payload.first_name,
                 last_name=payload.last_name,
                 middle_name=payload.middle_name,
@@ -42,9 +43,13 @@ class UserServiceAdmin:
                 password_hash=hash_password(payload.password),
             )
 
-            db_session.add(new_user)
+            db_session.add(user)
+            await db_session.flush()
+
+            db_session.add(UserSession(user_id=user.id))
+
             await db_session.commit()
-            await db_session.refresh(new_user)
+            await db_session.refresh(user)
 
         except IntegrityError as exc:
             await db_session.rollback()
@@ -54,7 +59,7 @@ class UserServiceAdmin:
 
             raise
 
-        return new_user
+        return user
 
     @staticmethod
     async def update_user(
