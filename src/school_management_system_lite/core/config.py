@@ -43,6 +43,9 @@ class Settings(BaseSettings):
 
     ACTIVATION_TOKEN_EXPIRES_HOURS: int = Field(ge=2, le=72, default=48)
 
+    EMAIL_WORKER_INTERVAL: int = Field(ge=1, le=600, default=60)
+    EMAIL_WORKER_BATCH_SIZE: int = Field(ge=1, le=50, default=10)
+
     RESEND_API_KEY: str
     MAIL_FROM: str = "noreply@sms-lite.org"
     MAIL_FROM_NAME: str = "SMS Lite"
