@@ -1,9 +1,12 @@
 from collections.abc import Sequence
 from typing import Annotated
 
-from fastapi import APIRouter, Path, status
+from fastapi import APIRouter, Path, Request, status
 
-from school_management_system_lite.core.dependencies import db_session_dependency
+from school_management_system_lite.core.dependencies import (
+    db_session_dependency,
+    require_system_admin,
+)
 from school_management_system_lite.users.schemas.system_admin import (
     CreateUserAdmin,
     UpdateUserAdmin,
@@ -22,10 +25,14 @@ router = APIRouter(
     "", response_model=UserResponseDetailedAdmin, status_code=status.HTTP_201_CREATED
 )
 async def register_user(
+    request: Request,
     db_session: db_session_dependency,
+    current_user: require_system_admin,
     payload: CreateUserAdmin,
 ):
-    return await UserServiceAdmin.register_user(db_session, payload)
+    return await UserServiceAdmin.register_user(
+        request, db_session, current_user.user_id, payload
+    )
 
 
 @router.patch(

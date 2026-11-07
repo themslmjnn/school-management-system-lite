@@ -1,10 +1,19 @@
 from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 
+from fastapi import Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from school_management_system_lite.auth.models.activation import UserActivation
 from school_management_system_lite.auth.models.session import UserSession
-from school_management_system_lite.core.security import hash_password
+from school_management_system_lite.core.config import Settings
+from school_management_system_lite.core.email.templates.users import (
+    build_account_activation_email,
+)
+from school_management_system_lite.core.security import generate_token, hash_password
+from school_management_system_lite.emails.enums import EmailType
+from school_management_system_lite.emails.models import Email
 from school_management_system_lite.users.models.user import User
 from school_management_system_lite.users.repositories.system_admin import (
     UserRepositoryAdmin,
@@ -26,9 +35,13 @@ from school_management_system_lite.utils.enums import UserStatus
 class UserServiceAdmin:
     @staticmethod
     async def register_user(
+        request: Request,
         db_session: AsyncSession,
+        actor_id: int,
         payload: CreateUserAdmin,
     ) -> User:
+        settings: Settings = request.app.state.settings
+
         try:
             user = User(
                 first_name=payload.first_name,
@@ -39,14 +52,40 @@ class UserServiceAdmin:
                 phone_number=payload.phone_number,
                 email=payload.email,
                 role=payload.role,
-                status=UserStatus.ACTIVE,
-                password_hash=hash_password(payload.password),
+                status=UserStatus.PENDING_ACTIVATION,
+                created_by=actor_id,
             )
 
             db_session.add(user)
             await db_session.flush()
 
+            raw_activation_token, activation_token_hash = generate_token()
+            activation_token_expires_at = datetime.now(UTC) + timedelta(
+                hours=settings.ACTIVATION_TOKEN_EXPIRES_HOURS
+            )
+
             db_session.add(UserSession(user_id=user.id))
+            db_session.add(
+                UserActivation(
+                    user_id=user.id,
+                    activation_token_hash=activation_token_hash,
+                    activation_token_expires_at=activation_token_expires_at,
+                )
+            )
+
+            subject, html_body = build_account_activation_email(
+                user.email, raw_activation_token
+            )
+
+            db_session.add(
+                Email(
+                    recipient_email=user.email,
+                    subject=subject,
+                    html_body=html_body,
+                    email_type=EmailType.ACCOUNT_ACTIVATION,
+                    triggered_by=actor_id,
+                )
+            )
 
             await db_session.commit()
             await db_session.refresh(user)
