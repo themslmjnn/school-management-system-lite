@@ -20,6 +20,8 @@ class Settings(BaseSettings):
         env_ignore_empty=True,
     )
 
+    APP_URL: str = "http://localhost:8000"
+
     ENVIRONMENT: Literal["development", "test"]
 
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
