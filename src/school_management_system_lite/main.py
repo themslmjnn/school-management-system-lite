@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -8,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from school_management_system_lite.auth.router import router as auth_module_routers
 from school_management_system_lite.core.config import Settings, get_settings
+from school_management_system_lite.core.email_worker import run_email_worker
 from school_management_system_lite.core.exceptions import register_exception_handlers
 from school_management_system_lite.core.logging import configure_logging
 from school_management_system_lite.database.connection import (
@@ -45,6 +47,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
     engine: AsyncEngine = build_engine(settings)
 
+    email_worker_task: asyncio.Task[None] | None = None
+
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
@@ -53,6 +57,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
         app.state.session_factory = build_session_factory(engine)
 
+        email_worker_task = asyncio.create_task(
+            run_email_worker(
+                session_factory=app.state.session_factory,
+                settings=settings,
+            ),
+            name="email_worker",
+        )
+
+        logger.info("email_worker_started")
         logger.info("application_ready")
 
         yield
@@ -61,6 +74,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         logger.info("application_shutting_down")
 
         is_shutdown_completed = True
+
+        if email_worker_task is not None:
+            email_worker_task.cancel()
+
+            result = await asyncio.gather(
+                email_worker_task,
+                return_exceptions=True,
+            )
+
+            result = result[0]
+
+            if isinstance(result, BaseException) and not isinstance(
+                result, asyncio.CancelledError
+            ):
+                is_shutdown_completed = False
+
+                logger.error(
+                    "worker_shutdown_error",
+                    worker=email_worker_task.get_name(),
+                    error=str(result),
+                    error_type=type(result).__name__,
+                )
 
         try:
             await engine.dispose()
