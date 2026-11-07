@@ -2,10 +2,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from school_management_system_lite.groups.exceptions import (
+    GroupNotFound,
     handle_duplicate_group_integrity_error,
 )
 from school_management_system_lite.groups.models import Group
-from school_management_system_lite.groups.schemas import CreateGroup
+from school_management_system_lite.groups.repository import GroupRepository
+from school_management_system_lite.groups.schemas import CreateGroup, UpdateGroup
 
 
 class GroupService:
@@ -26,3 +28,27 @@ class GroupService:
             raise
 
         return new_group
+
+    @staticmethod
+    async def update_group(
+        db_session: AsyncSession, group_id: int, payload: UpdateGroup
+    ) -> Group:
+        group = await GroupRepository.get_by_id(db_session, group_id)
+        if group is None:
+            raise GroupNotFound()
+
+        try:
+            for field, value in payload.model_dump(exclude_unset=True).items():
+                setattr(group, field, value)
+
+            await db_session.commit()
+            await db_session.refresh(group)
+
+        except IntegrityError as exc:
+            await db_session.rollback()
+
+            handle_duplicate_group_integrity_error(exc)
+
+            raise
+
+        return group
