@@ -1,6 +1,7 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -18,6 +19,8 @@ from school_management_system_lite.subjects.router import (
     router as subjects_module_routers,
 )
 from school_management_system_lite.users.routers import router as users_module_routers
+
+logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
@@ -38,18 +41,39 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
     settings: Settings = app.state.settings
 
+    logger.info("application_starting", environment=settings.ENVIRONMENT)
+
     engine: AsyncEngine = build_engine(settings)
 
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
 
+        logger.info("database_connected")
+
         app.state.session_factory = build_session_factory(engine)
+
+        logger.info("application_ready")
 
         yield
 
     finally:
-        await engine.dispose()
+        logger.info("application_shutting_down")
+
+        is_shutdown_completed = True
+
+        try:
+            await engine.dispose()
+
+            logger.info("db_engine_disposed")
+
+        except Exception as exc:
+            is_shutdown_completed = False
+
+            logger.exception("shutdown_failed", error=str(exc))
+
+        if is_shutdown_completed:
+            logger.info("application_stopped")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

@@ -51,7 +51,7 @@ class CurrentUser:
 
 async def get_current_user(
     request: Request,
-    db_session: AsyncSession,
+    db_session: db_session_dependency,
     access_token: Annotated[str | None, Depends(oauth2_scheme)],
 ) -> CurrentUser:
     if access_token is None:
@@ -122,3 +122,8 @@ def require_roles(*roles: UserRole) -> Callable[..., CurrentUser]:
         return current_user
 
     return guard
+
+
+require_system_admin = Annotated[
+    CurrentUser, Depends(require_roles(UserRole.SYSTEM_ADMIN))
+]

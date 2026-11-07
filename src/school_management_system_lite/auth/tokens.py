@@ -54,6 +54,8 @@ def decode_access_token(access_token: str, settings: Settings) -> dict:
     except jwt.InvalidTokenError:
         raise InvalidAccessTokenError()
 
+    return payload
+
 
 def create_refresh_token(
     *,
