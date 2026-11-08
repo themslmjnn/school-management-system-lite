@@ -2,13 +2,12 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import structlog
-from fastapi import Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from school_management_system_lite.auth.models.activation import UserActivation
 from school_management_system_lite.auth.models.session import UserSession
-from school_management_system_lite.core.config import Settings
+from school_management_system_lite.core.config import Settings, get_settings
 from school_management_system_lite.core.email.templates.users import (
     build_account_activation_email,
 )
@@ -38,12 +37,11 @@ logger = structlog.get_logger(__name__)
 class UserServiceAdmin:
     @staticmethod
     async def register_user(
-        request: Request,
         db_session: AsyncSession,
         actor_id: int,
         payload: CreateUserAdmin,
     ) -> User:
-        settings: Settings = request.app.state.settings
+        settings: Settings = get_settings()
 
         try:
             user = User(
