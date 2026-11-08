@@ -20,7 +20,7 @@ def create_access_token(
     settings: Settings,
 ) -> str:
     payload = {
-        "sub": user_id,
+        "sub": str(user_id),
         "role": role,
         "atv": access_token_version,
         "session_id": session_id,
@@ -40,7 +40,7 @@ def decode_access_token(access_token: str, settings: Settings) -> dict:
     try:
         payload = jwt.decode(
             jwt=access_token,
-            key=settings.JWT_SECRET_KEY,
+            key=settings.JWT_SECRET_KEY.get_secret_value(),
             algorithms=[settings.JWT_ALGORITHM],
             options={"require": ["sub", "atv", "session_id", "exp"]},
         )
