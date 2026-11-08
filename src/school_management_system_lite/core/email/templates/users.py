@@ -9,7 +9,7 @@ def build_account_activation_email(
 
     activation_link = f"{settings.APP_URL}/activation?token={raw_activation_token}"
 
-    subject = "Activate your Meridian account"
+    subject = "Activate your SMS Lite account"
 
     html_body = f"""
         <!DOCTYPE html>
