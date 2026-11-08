@@ -45,7 +45,7 @@ async def make_user(
         email=email or f"user_{n}@example.com",
         role=role,
         status=status,
-        password_hash=await hash_password(password) if password else None,
+        password_hash=hash_password(password) if password else None,
     )
 
     db_test_session.add(user)
