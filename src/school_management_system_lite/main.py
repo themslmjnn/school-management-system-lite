@@ -75,8 +75,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
             logger.info("redis_connected")
 
-        except BaseException as exc:
-            logger.error("redis_connection_failed", error=str(exc))
+        except Exception as exc:
+            logger.warning("redis_connection_failed", error=str(exc))
 
         app.state.engine = engine
         app.state.session_factory = build_session_factory(engine)
@@ -119,6 +119,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
                     error=str(result),
                     error_type=type(result).__name__,
                 )
+
+            logger.info("email_worker_stopped")
 
         shutdown = (
             ("redis", redis.aclose, "redis_closed"),
