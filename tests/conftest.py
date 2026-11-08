@@ -42,7 +42,7 @@ async def test_db_session(
             bind=conn,
             expire_on_commit=False,
             join_transaction_mode="create_savepoint",
-        )
+        )()
 
         try:
             yield session
