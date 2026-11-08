@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     DB_POOL_TIMEOUT: int = Field(ge=1, le=30, default=5)
     DB_CONNECT_TIMEOUT: int = Field(ge=1, le=60, default=5)
 
+    REDIS_HOST: NonEmptyStr
+    REDIS_PORT: int = Field(ge=1, le=65535, default=6379)
+    REDIS_PASSWORD: SecretStr | None = None
+    REDIS_DB: int = Field(ge=0, le=15)
+
     JWT_ALGORITHM: str = "HS256"
     JWT_SECRET_KEY: SecretStr
 
