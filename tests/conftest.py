@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import (
 from school_management_system_lite.core.dependencies import get_db_session
 from school_management_system_lite.database.base import Base
 from school_management_system_lite.main import app
+from school_management_system_lite.users.models.user import User
+from tests.factories import make_director, make_student, make_system_admin, make_teacher
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
@@ -69,3 +71,23 @@ async def client(test_db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
         yield async_client
 
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def system_admin(db_test_session) -> User:
+    return await make_system_admin(db_test_session)
+
+
+@pytest_asyncio.fixture
+async def director(db_test_session) -> User:
+    return await make_director(db_test_session)
+
+
+@pytest_asyncio.fixture
+async def teacher(db_test_session) -> User:
+    return await make_teacher(db_test_session)
+
+
+@pytest_asyncio.fixture
+async def student(db_test_session) -> User:
+    return await make_student(db_test_session)
