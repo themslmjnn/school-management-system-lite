@@ -69,6 +69,15 @@ class Settings(BaseSettings):
             f"@{self.DB_HOST}:{self.DB_PORT}/{quote(self.DB_NAME, safe='')}"
         )
 
+    @property
+    def REDIS_URL(self) -> str:
+        if self.REDIS_PASSWORD:
+            password = quote(self.REDIS_PASSWORD.get_secret_value(), safe="")
+
+            return f"redis://:{password}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
     @field_validator("JWT_SECRET_KEY")
     @classmethod
     def validate_jwt_secret_key(cls, v: SecretStr) -> SecretStr:
