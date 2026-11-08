@@ -99,7 +99,7 @@ class UserServiceAdmin:
             logger.warning(
                 "user_registration_failed",
                 failure_reason="integrity_error",
-                error=str(exc),
+                error=str(exc.orig),
                 requested_by=actor_id,
             )
 
