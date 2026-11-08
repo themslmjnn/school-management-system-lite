@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
+from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -12,6 +13,7 @@ from school_management_system_lite.core.config import Settings, get_settings
 from school_management_system_lite.core.email_worker import run_email_worker
 from school_management_system_lite.core.exceptions import register_exception_handlers
 from school_management_system_lite.core.logging import configure_logging
+from school_management_system_lite.core.redis.client import build_redis
 from school_management_system_lite.database.connection import (
     build_engine,
     build_session_factory,
@@ -28,17 +30,27 @@ logger = structlog.get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """
-    Own the lifetime of shared resources.
+    Manage the lifetime of shared application resources.
 
     Startup:
-    1. Read settings from app.state (attached by create_app)
-    2. Build the DB engine (it doesn't connect yet)
-    3. Verify PostgreSQL is reachable
-    5. Attach the engine, session to app.state
+    1. Read settings from app.state.
+    2. Build the database engine and Redis client.
+    3. Verify that PostgreSQL is reachable.
+       Database failure prevents the application from starting.
+    4. Check Redis connectivity.
+       Redis is optional, so Redis failure is logged but does not
+       prevent the application from starting.
+    5. Attach the database engine, session factory, and Redis client
+       to app.state.
+    6. Start the email worker.
+    7. Yield control to the application.
 
-    Shutdown (reverse of startup):
-    1. Dispose the DB engine
-       Shutdown runs in `finally`, so it also runs after a failed startup.
+    Shutdown:
+    1. Cancel and wait for the email worker, if it was started.
+    2. Close the Redis client.
+    3. Dispose of the database engine.
+
+    Shutdown continues even if an individual cleanup step fails.
     """
 
     settings: Settings = app.state.settings
@@ -46,6 +58,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     logger.info("application_starting", environment=settings.ENVIRONMENT)
 
     engine: AsyncEngine = build_engine(settings)
+    redis: Redis = build_redis(settings)
 
     email_worker_task: asyncio.Task[None] | None = None
 
@@ -55,6 +68,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
         logger.info("database_connected")
 
+        try:
+            await redis.ping()
+
+            app.state.redis = redis
+
+            logger.info("redis_connected")
+
+        except BaseException as exc:
+            logger.error("redis_connection_failed", error=str(exc))
+
+        app.state.engine = engine
         app.state.session_factory = build_session_factory(engine)
 
         email_worker_task = asyncio.create_task(
@@ -96,15 +120,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
                     error_type=type(result).__name__,
                 )
 
-        try:
-            await engine.dispose()
+        shutdown = (
+            ("redis", redis.aclose, "redis_closed"),
+            ("db_engine", engine.dispose, "db_engine_disposed"),
+        )
 
-            logger.info("db_engine_disposed")
+        for step, close, log in shutdown:
+            try:
+                await close()
 
-        except Exception as exc:
-            is_shutdown_completed = False
+                logger.info(log)
 
-            logger.exception("shutdown_failed", error=str(exc))
+            except Exception as exc:
+                is_shutdown_completed = False
+
+                logger.exception("shutdown_step_failed", step=step, error=str(exc))
 
         if is_shutdown_completed:
             logger.info("application_stopped")
@@ -112,17 +142,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     """
-    Build the application.
+    Build and configure the FastAPI application.
 
-    1. Resolve settings once. Pass `settings` explicitly in tests;
-       otherwise they come from get_settings().
-    2. Create the FastAPI app and attach settings to app.state.
-    3. Register exception handlers, so every error leaves the app in the
-       standard shape.
-    4. Register routers.
+    1. Resolve settings once. Explicit settings are used in tests;
+       otherwise they are loaded through get_settings().
+    2. Configure application logging.
+    3. Create the FastAPI application with the resource lifespan.
+    4. Attach settings to app.state.
+    5. Register exception handlers.
+    6. Register application routers.
 
-    Database is not created here. The lifespan builds
-    it, so tests that skip the lifespan must set them on app.state.
+    Database and Redis resources are created by the lifespan rather
+    than here. Tests that do not run the lifespan must provide any
+    required resources on app.state themselves.
     """
 
     settings = settings or get_settings()
