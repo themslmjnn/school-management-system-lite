@@ -15,6 +15,7 @@ dependencies = [
     "greenlet>=3.5.6",
     "passlib>=1.7.4",
     "pyjwt>=2.15.1",
+    "redis>=8.1.0",
     "sqlalchemy>=2.1.8",
     "structlog>=26.1.0",
     "ua-parser>=1.0.2",
