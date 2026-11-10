@@ -8,6 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from school_management_system_lite.auth.models.activation import UserActivation
 from school_management_system_lite.auth.models.session import UserSession
+from school_management_system_lite.auth.repositories.session import (
+    UserSessionRepository,
+)
 from school_management_system_lite.core.config import Settings, get_settings
 from school_management_system_lite.core.email.service import send_email_in_background
 from school_management_system_lite.core.email.templates.users import (
@@ -138,12 +141,14 @@ class UserServiceAdmin:
         if user is None:
             raise UserNotFoundError()
 
+        payload = payload.model_dump(exclude_unset=True, exclude_none=True)
+        if payload is None:
+            return
+
         try:
             is_new_value = False
 
-            for field, value in payload.model_dump(
-                exclude_unset=True, exclude_none=True
-            ).items():
+            for field, value in payload.items():
                 if getattr(user, field) != value:
                     setattr(user, field, value)
 
@@ -173,7 +178,7 @@ class UserServiceAdmin:
         await delete_cache(
             redis,
             UsersCacheKeys.detailed_response_key_admin(user_id),
-            UsersCacheKeys.detailed_response_key_self(user_id),
+            UsersCacheKeys.detailed_response_key_staff(user_id),
             UsersCacheKeys.detailed_response_key_self(user_id),
         )
 
@@ -209,6 +214,14 @@ class UserServiceAdmin:
 
             user.email = payload.email
 
+            user_session = await UserSessionRepository.get_by_user_id(
+                db_session, user_id
+            )
+
+            user_session.access_token_version += 1
+            user_session.refresh_token_hash = None
+            user_session.refresh_token_expires_at = None
+
             subject, html_body = build_admin_email_override_email(
                 user.email,
             )
@@ -243,7 +256,7 @@ class UserServiceAdmin:
         await delete_cache(
             redis,
             UsersCacheKeys.detailed_response_key_admin(user_id),
-            UsersCacheKeys.detailed_response_key_self(user_id),
+            UsersCacheKeys.detailed_response_key_staff(user_id),
             UsersCacheKeys.detailed_response_key_self(user_id),
         )
 
