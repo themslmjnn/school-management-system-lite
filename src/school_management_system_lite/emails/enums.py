@@ -3,7 +3,7 @@ from enum import StrEnum
 
 class EmailType(StrEnum):
     ACCOUNT_ACTIVATION = "account_activation"
-    ADMIN_PROFILE_OVERRIDE = "admin_profile_override"
+    ADMIN_IDENTITY_OVERRIDE = "admin_identity_override"
     ADMIN_CREDENTIALS_OVERRIDE = "admin_credentials_override"
     ADMIN_ACCOUNT_DEACTIVATION = "admin_account_deactivation"
     ADMIN_ACCOUNT_ACTIVATION = "admin_account_activation"
