@@ -6,9 +6,16 @@ from school_management_system_lite.users.schemas.system_admin import UpdateIdent
 from school_management_system_lite.users.services.system_admin import UserServiceAdmin
 from school_management_system_lite.users.utils.exceptions import (
     PhoneNumberAlreadyTakenError,
+    UserNotFoundError,
 )
 from school_management_system_lite.utils.enums import UserRole
-from tests.factories import make_director, make_student, make_teacher, make_user
+from tests.factories import (
+    make_director,
+    make_student,
+    make_system_admin,
+    make_teacher,
+    make_user,
+)
 
 
 class TestSuccess:
@@ -59,6 +66,27 @@ class TestSuccess:
         await test_db_session.refresh(user)
 
         assert user.first_name == "Updated-First-Name"
+        assert user.phone_number == "+992111222333"
+
+    async def test_ignores_required_fields_with_null_values(
+        self,
+        test_db_session: AsyncSession,
+        system_admin: User,
+        mock_send_admin_identity_override_email,
+    ) -> None:
+        user = await make_teacher(test_db_session)
+
+        original_first_name = user.first_name
+
+        payload = UpdateIdentityAdmin(first_name=None, phone_number="+992 111 222 333")
+
+        await UserServiceAdmin.update_identity(
+            test_db_session, system_admin.id, user.id, payload
+        )
+
+        await test_db_session.refresh(user)
+
+        assert user.first_name == original_first_name
         assert user.phone_number == "+992111222333"
 
     async def test_nothing_changes_if_payload_is_empty(
@@ -117,6 +145,37 @@ class TestSuccess:
         assert user.phone_number == original_values["phone_number"]
 
         mock_send_admin_identity_override_email.assert_not_called()
+
+
+class TestEligibleUsers:
+    async def test_updating_system_admin_is_prevented(
+        self, test_db_session: AsyncSession, system_admin: User
+    ) -> None:
+        with pytest.raises(UserNotFoundError):
+            await UserServiceAdmin.update_identity(
+                test_db_session,
+                actor_id=system_admin.id,
+                user_id=system_admin.id,
+                payload=UpdateIdentityAdmin(),
+            )
+
+    async def test_system_admin_cannot_update_another_system_admin(
+        self, test_db_session: AsyncSession, system_admin: User
+    ) -> None:
+        user = await make_system_admin(test_db_session)
+
+        with pytest.raises(UserNotFoundError):
+            await UserServiceAdmin.update_identity(
+                test_db_session, system_admin.id, user.id, payload=UpdateIdentityAdmin()
+            )
+
+    async def test_raise_error_on_unknown_users(
+        self, test_db_session: AsyncSession, system_admin: User
+    ) -> None:
+        with pytest.raises(UserNotFoundError):
+            await UserServiceAdmin.update_identity(
+                test_db_session, system_admin.id, 999999, payload=UpdateIdentityAdmin()
+            )
 
 
 class TestEmailSending:
