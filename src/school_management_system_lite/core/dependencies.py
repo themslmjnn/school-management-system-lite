@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
-from typing import Annotated, cast
+from typing import Annotated
 
 from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
@@ -40,8 +40,8 @@ async def get_db_session(request: Request) -> AsyncIterator[AsyncSession]:
         yield db_session
 
 
-def get_redis(request: Request) -> Redis:
-    return cast("Redis", request.app.state.redis)
+def get_redis(request: Request) -> Redis | None:
+    return request.app.state.redis
 
 
 db_session_dependency = Annotated[AsyncSession, Depends(get_db_session)]

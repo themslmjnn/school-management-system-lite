@@ -10,7 +10,10 @@ logger = structlog.get_logger(__name__)
 DEFAULT_CACHE_TTL_SECONDS = 300
 
 
-async def get_cache(redis: Redis, key: str) -> Any | None:
+async def get_cache(redis: Redis | None, key: str) -> Any | None:
+    if redis is None:
+        return
+
     try:
         cached_value = await redis.get(key)
 
@@ -45,7 +48,7 @@ async def set_cache(
     value: Any,
     ttl: int = DEFAULT_CACHE_TTL_SECONDS,
 ) -> None:
-    if value is None:
+    if redis is None or value is None:
         return
 
     payload = json.dumps(value)
@@ -61,8 +64,8 @@ async def set_cache(
         )
 
 
-async def delete_cache(redis: Redis, *keys: str) -> None:
-    if not keys:
+async def delete_cache(redis: Redis | None, *keys: str) -> None:
+    if redis is None or not keys:
         return
 
     try:
