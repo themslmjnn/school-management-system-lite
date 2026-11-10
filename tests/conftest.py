@@ -1,14 +1,12 @@
-from collections.abc import AsyncGenerator, AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from redis.asyncio import Redis
-from sqlalchemy import NullPool, create_engine
+from sqlalchemy import NullPool, create_engine, event
 from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
     AsyncSession,
-    async_sessionmaker,
     create_async_engine,
 )
 
@@ -26,6 +24,18 @@ test_engine = create_async_engine(
     "sqlite+aiosqlite:///./test.db",
     poolclass=NullPool,
 )
+
+
+@event.listens_for(test_engine.sync_engine, "connect")
+def _sqlite_disable_driver_transactions(dbapi_connection, connection_record) -> None:
+    # Stop the driver from managing transactions itself,
+    # so SQLAlchemy controls BEGIN/SAVEPOINT/ROLLBACK.
+    dbapi_connection.isolation_level = None
+
+
+@event.listens_for(test_engine.sync_engine, "begin")
+def _sqlite_emit_begin(conn) -> None:
+    conn.exec_driver_sql("BEGIN")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -86,7 +96,7 @@ async def test_db_session(
 async def redis_client() -> AsyncIterator[Redis]:
     app.state.settings = get_settings()
 
-    redis: Redis = build_redis(app)
+    redis: Redis = build_redis(app.state.settings)
 
     client: Redis = app.state.redis
 

@@ -51,8 +51,6 @@ async def make_user(
     db_test_session.add(user)
     await db_test_session.flush()
 
-    await db_test_session.flush()
-
     _, activation_token_hash = generate_token()
 
     if status == UserStatus.PENDING_ACTIVATION:
@@ -69,8 +67,7 @@ async def make_user(
 
     db_test_session.add(UserSession(user_id=user.id))
 
-    await db_test_session.commit()
-    await db_test_session.refresh(user)
+    await db_test_session.flush()
 
     return user
 
