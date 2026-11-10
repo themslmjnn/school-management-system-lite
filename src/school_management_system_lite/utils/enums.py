@@ -15,3 +15,8 @@ class UserStatus(StrEnum):
     EXPELLED = "expelled"
     WITHDRAWN = "withdrawn"
     GRADUATED = "graduated"
+
+
+class OrderBy(StrEnum):
+    ASC = "asc"
+    DESC = "desc"

@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from school_management_system_lite.auth.cookies import set_refresh_token_cookie
+from school_management_system_lite.auth.models.session import UserSession
 from school_management_system_lite.auth.repositories.session import (
     UserSessionRepository,
 )
@@ -78,6 +79,11 @@ class AuthService:
             raise InvalidCredentialsError()
 
         user_session = await UserSessionRepository.get_by_user_id(db_session, user.id)
+        if user_session is None:
+            user_session = UserSession(user_id=user.id)
+
+            db_session.add(user_session)
+            await db_session.flush()
 
         raw_refresh_token, refresh_token_hash = create_refresh_token(
             user_id=user.id, session_id=user_session.id, settings=settings
