@@ -9,8 +9,8 @@ from school_management_system_lite.core.dependencies import (
 )
 from school_management_system_lite.users.schemas.system_admin import (
     CreateUserAdmin,
+    UpdateEmailAdmin,
     UpdateIdentityAdmin,
-    UpdateUserAdmin,
     UserResponseBaseAdmin,
     UserResponseDetailedAdmin,
 )
@@ -52,16 +52,18 @@ async def update_identity(
 
 
 @router.patch(
-    "/admin/users/{user_id}",
-    response_model=UserResponseDetailedAdmin,
-    status_code=status.HTTP_200_OK,
+    "/admin/users/{user_id}/email",
+    status_code=status.HTTP_204_NO_CONTENT,
 )
-async def update_user(
+async def update_email(
     db_session: db_session_dependency,
+    current_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
-    payload: UpdateUserAdmin,
+    payload: UpdateEmailAdmin,
 ):
-    return await UserServiceAdmin.update_user(db_session, user_id, payload)
+    return await UserServiceAdmin.update_email(
+        db_session, current_user.user_id, user_id, payload
+    )
 
 
 @router.patch(

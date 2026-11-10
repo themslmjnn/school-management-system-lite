@@ -11,6 +11,7 @@ from school_management_system_lite.core.config import Settings, get_settings
 from school_management_system_lite.core.email.service import send_email_in_background
 from school_management_system_lite.core.email.templates.users import (
     build_account_activation_email,
+    build_admin_email_override_email,
     send_admin_identity_override_email,
 )
 from school_management_system_lite.core.security import generate_token
@@ -22,6 +23,7 @@ from school_management_system_lite.users.repositories.system_admin import (
 )
 from school_management_system_lite.users.schemas.system_admin import (
     CreateUserAdmin,
+    UpdateEmailAdmin,
     UpdateIdentityAdmin,
 )
 from school_management_system_lite.users.utils.exceptions import (
@@ -157,6 +159,59 @@ class UserServiceAdmin:
 
         logger.info(
             "identity_updated",
+            user_id=user.id,
+            actor_id=actor_id,
+            method="admin_update",
+        )
+
+    @staticmethod
+    async def update_email(
+        db_session: AsyncSession,
+        actor_id: int,
+        user_id: int,
+        payload: UpdateEmailAdmin,
+    ) -> None:
+        user = await UserRepositoryAdmin.get_by_id(db_session, user_id)
+        if user is None:
+            raise UserNotFoundError()
+
+        try:
+            if payload.email is not None:
+                user.email = payload.email
+
+            subject, html_body = build_admin_email_override_email(
+                user.email,
+            )
+
+            db_session.add(
+                Email(
+                    recipient_email=user.email,
+                    subject=subject,
+                    html_body=html_body,
+                    email_type=EmailType.ADMIN_CREDENTIALS_OVERRIDE,
+                    triggered_by=actor_id,
+                )
+            )
+
+            await db_session.commit()
+
+        except IntegrityError as exc:
+            await db_session.rollback()
+
+            logger.warning(
+                "updating_email_failed",
+                failure_reason="integrity_error",
+                error=str(exc.orig),
+                user_id=user.id,
+                requested_by=actor_id,
+            )
+
+            handle_email_integrity_error(exc)
+
+            raise
+
+        logger.info(
+            "email_updated",
             user_id=user.id,
             actor_id=actor_id,
             method="admin_update",

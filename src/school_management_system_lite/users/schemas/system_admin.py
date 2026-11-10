@@ -145,7 +145,7 @@ class UpdateIdentityAdmin(BaseModel):
         return validate_phone_number(phone_number)
 
 
-class UpdateCredentials(BaseModel):
+class UpdateEmailAdmin(BaseModel):
     email: str | None = Field(max_length=50, default=None)
 
     @field_validator("email")
