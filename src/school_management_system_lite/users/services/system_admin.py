@@ -8,10 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from school_management_system_lite.auth.models.activation import UserActivation
 from school_management_system_lite.auth.models.session import UserSession
 from school_management_system_lite.core.config import Settings, get_settings
+from school_management_system_lite.core.email.service import send_email_in_background
 from school_management_system_lite.core.email.templates.users import (
     build_account_activation_email,
+    send_admin_identity_override_email,
 )
-from school_management_system_lite.core.security import generate_token, hash_password
+from school_management_system_lite.core.security import generate_token
 from school_management_system_lite.emails.enums import EmailType
 from school_management_system_lite.emails.models import Email
 from school_management_system_lite.users.models.user import User
@@ -20,7 +22,7 @@ from school_management_system_lite.users.repositories.system_admin import (
 )
 from school_management_system_lite.users.schemas.system_admin import (
     CreateUserAdmin,
-    UpdateUserAdmin,
+    UpdateIdentityAdmin,
 )
 from school_management_system_lite.users.utils.exceptions import (
     UserAlreadyActive,
@@ -117,32 +119,48 @@ class UserServiceAdmin:
         return user
 
     @staticmethod
-    async def update_user(
-        db_session: AsyncSession, user_id: int, payload: UpdateUserAdmin
-    ) -> User:
+    async def update_identity(
+        db_session: AsyncSession,
+        actor_id: int,
+        user_id: int,
+        payload: UpdateIdentityAdmin,
+    ) -> None:
         user = await UserRepositoryAdmin.get_by_id(db_session, user_id)
         if user is None:
             raise UserNotFoundError()
 
         try:
             for field, value in payload.model_dump(exclude_unset=True).items():
-                if field == "password":
-                    user.password_hash = hash_password(value)
-
                 setattr(user, field, value)
 
             await db_session.commit()
-            await db_session.refresh(user)
 
         except IntegrityError as exc:
             await db_session.rollback()
 
+            logger.warning(
+                "updating_identity_failed",
+                failure_reason="integrity_error",
+                error=str(exc.orig),
+                user_id=user.id,
+                requested_by=actor_id,
+            )
+
             handle_phone_number_integrity_error(exc)
-            handle_email_integrity_error(exc)
 
             raise
 
-        return user
+        send_email_in_background(
+            send_admin_identity_override_email(user.email),
+            email_type=EmailType.ADMIN_IDENTITY_OVERRIDE,
+        )
+
+        logger.info(
+            "identity_updated",
+            user_id=user.id,
+            actor_id=actor_id,
+            method="admin_update",
+        )
 
     @staticmethod
     async def deactivate_user(db_session: AsyncSession, user_id: int) -> None:

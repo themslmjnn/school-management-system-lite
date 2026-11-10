@@ -97,13 +97,61 @@ class CreateUserAdmin(BaseModel):
         return self
 
 
-class UpdateUserAdmin(BaseModel):
+class UpdateIdentityAdmin(BaseModel):
     first_name: str | None = Field(min_length=3, max_length=30, default=None)
     last_name: str | None = Field(min_length=3, max_length=30, default=None)
     middle_name: str | None = Field(min_length=3, max_length=30, default=None)
-    date_of_birth: date | None = None
     address: str | None = Field(max_length=150, default=None)
     phone_number: str | None = Field(max_length=20, default=None)
+
+    @field_validator("first_name")
+    @classmethod
+    def _validate_first_name(cls, first_name: str | None) -> str | None:
+        if first_name is None:
+            return None
+
+        return validate_first_name(first_name)
+
+    @field_validator("last_name")
+    @classmethod
+    def _validate_last_name(cls, last_name: str | None) -> str | None:
+        if last_name is None:
+            return None
+
+        return validate_last_name(last_name)
+
+    @field_validator("middle_name")
+    @classmethod
+    def _validate_middle_name(cls, middle_name: str | None) -> str | None:
+        if middle_name is None:
+            return None
+
+        return validate_middle_name(middle_name)
+
+    @field_validator("address")
+    @classmethod
+    def _normalise_address(cls, address: str | None) -> str | None:
+        if address is None:
+            return None
+
+        return address.strip()
+
+    @field_validator("phone_number")
+    @classmethod
+    def _validate_phone_number(cls, phone_number: str | None) -> str | None:
+        if phone_number is None:
+            return None
+
+        return validate_phone_number(phone_number)
+
+
+class UpdateCredentials(BaseModel):
     email: str | None = Field(max_length=50, default=None)
-    role: UserRole | None = None
-    password: str | None = Field(min_length=8, default=None)
+
+    @field_validator("email")
+    @classmethod
+    def _validate_email(cls, email: str | None) -> str | None:
+        if email is None:
+            return None
+
+        return validate_email(email)

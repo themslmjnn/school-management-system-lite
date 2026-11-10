@@ -9,6 +9,7 @@ from school_management_system_lite.core.dependencies import (
 )
 from school_management_system_lite.users.schemas.system_admin import (
     CreateUserAdmin,
+    UpdateIdentityAdmin,
     UpdateUserAdmin,
     UserResponseBaseAdmin,
     UserResponseDetailedAdmin,
@@ -32,6 +33,21 @@ async def register_user(
 ):
     return await UserServiceAdmin.register_user(
         db_session, current_user.user_id, payload
+    )
+
+
+@router.patch(
+    "/admin/users/{user_id}/identity",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def update_identity(
+    db_session: db_session_dependency,
+    current_user: require_system_admin,
+    user_id: Annotated[int, Path(ge=1)],
+    payload: UpdateIdentityAdmin,
+):
+    return await UserServiceAdmin.update_identity(
+        db_session, current_user.user_id, user_id, payload
     )
 
 
