@@ -62,7 +62,7 @@ async def get_current_user(
             access_token=access_token, settings=request.app.state.settings
         )
 
-        user_id = int(payload["user_id"])
+        user_id = int(payload["sub"])
         role = UserRole(payload["role"])
         access_token_version = int(payload["atv"])
         session_id = int(payload["session_id"])
