@@ -104,14 +104,39 @@ def validate_phone_number(phone_number: str) -> str:
     return "".join(phone_number.split())
 
 
+def validate_email(email: str) -> str:
+    email = email.strip().lower()
+
+    if "@" not in email:
+        raise PydanticCustomError(
+            "invalid_email",
+            "Email must contain '@'",
+        )
+
+    local_part, domain = email.rsplit("@", 1)
+
+    if (
+        not local_part
+        or "." not in domain
+        or domain.startswith(".")
+        or domain.endswith(".")
+    ):
+        raise PydanticCustomError(
+            "invalid_email",
+            "Email must contain a valid domain",
+        )
+
+    return email
+
+
 def validate_password(password: str) -> str:
-    if not any(c.isupper() for c in password):
+    if not any(char.isupper() for char in password):
         raise PydanticCustomError(
             "password_no_uppercase",
             "Password must contain at least one uppercase letter",
         )
 
-    if not any(c.isdigit() for c in password):
+    if not any(char.isdigit() for char in password):
         raise PydanticCustomError(
             "password_no_digit",
             "Password must contain at least one digit",

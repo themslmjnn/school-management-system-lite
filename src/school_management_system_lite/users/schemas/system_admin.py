@@ -1,12 +1,19 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from school_management_system_lite.users.utils.shared_schemas import UserResponseBase
 from school_management_system_lite.users.utils.validators import (
     validate_date_of_birth_non_student,
     validate_date_of_birth_student,
+    validate_email,
     validate_first_name,
     validate_last_name,
     validate_middle_name,
@@ -39,38 +46,46 @@ class CreateUserAdmin(BaseModel):
     last_name: str = Field(min_length=3, max_length=30)
     middle_name: str | None = Field(min_length=3, max_length=30, default=None)
     date_of_birth: date
-    address: str | None = Field(max_length=150)
+    address: str | None = Field(max_length=150, default=None)
     phone_number: str = Field(max_length=20)
     email: str = Field(max_length=50)
     role: Literal[UserRole.STUDENT, UserRole.TEACHER, UserRole.DIRECTOR]
 
     @field_validator("first_name")
     @classmethod
-    def _validate_first_name(cls, v: str) -> str:
-        return validate_first_name(v)
+    def _validate_first_name(cls, first_name: str) -> str:
+        return validate_first_name(first_name)
 
     @field_validator("last_name")
     @classmethod
-    def _validate_last_name(cls, v: str) -> str:
-        return validate_last_name(v)
+    def _validate_last_name(cls, last_name: str) -> str:
+        return validate_last_name(last_name)
 
     @field_validator("middle_name")
     @classmethod
-    def _validate_middle_name(cls, v: str | None) -> str | None:
-        if v is None:
+    def _validate_middle_name(cls, middle_name: str | None) -> str | None:
+        if middle_name is None:
             return None
 
-        return validate_middle_name(v)
+        return validate_middle_name(middle_name)
+
+    @field_validator("address")
+    @classmethod
+    def _normalise_address(cls, address: str | None) -> str | None:
+        if address is None:
+            return None
+
+        return address.strip()
 
     @field_validator("phone_number")
     @classmethod
-    def _validate_phone_number(cls, v: str) -> str:
-        return validate_phone_number(v)
+    def _validate_phone_number(cls, phone_number: str) -> str:
+        return validate_phone_number(phone_number)
 
     @field_validator("email")
     @classmethod
-    def normalize_email(cls, v: str) -> str:
-        return v.strip().lower()
+    def _validate_email(cls, email: str) -> str:
+        return validate_email(email)
 
     @model_validator(mode="after")
     def _validate_birth_date(self) -> CreateUserAdmin:
