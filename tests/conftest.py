@@ -102,6 +102,8 @@ async def redis_client() -> AsyncIterator[Redis | None]:
 
     redis = build_redis(app.state.settings)
 
+    app.state.redis = None
+
     try:
         await redis.ping()
 

@@ -24,6 +24,7 @@ class TestSuccess:
     async def test_successful_update(
         self,
         test_db_session: AsyncSession,
+        redis_client: Redis,
         system_admin: User,
         mock_send_admin_identity_override_email,
         mock_users_delete_cache_system_admin,
@@ -39,7 +40,7 @@ class TestSuccess:
         )
 
         await UserServiceAdmin.update_identity(
-            test_db_session, system_admin.id, user.id, payload
+            test_db_session, redis_client, system_admin.id, user.id, payload
         )
 
         await test_db_session.refresh(user)
@@ -53,8 +54,10 @@ class TestSuccess:
     async def test_ignores_unset_fields(
         self,
         test_db_session: AsyncSession,
+        redis_client: Redis,
         system_admin: User,
         mock_send_admin_identity_override_email,
+        mock_users_delete_cache_system_admin,
     ) -> None:
         user = await make_teacher(test_db_session)
 
@@ -63,7 +66,7 @@ class TestSuccess:
         )
 
         await UserServiceAdmin.update_identity(
-            test_db_session, system_admin.id, user.id, payload
+            test_db_session, redis_client, system_admin.id, user.id, payload
         )
 
         await test_db_session.refresh(user)
@@ -74,8 +77,10 @@ class TestSuccess:
     async def test_ignores_required_fields_with_null_values(
         self,
         test_db_session: AsyncSession,
+        redis_client: Redis,
         system_admin: User,
         mock_send_admin_identity_override_email,
+        mock_users_delete_cache_system_admin,
     ) -> None:
         user = await make_teacher(test_db_session)
 
@@ -84,7 +89,7 @@ class TestSuccess:
         payload = UpdateIdentityAdmin(first_name=None, phone_number="+992 111 222 333")
 
         await UserServiceAdmin.update_identity(
-            test_db_session, system_admin.id, user.id, payload
+            test_db_session, redis_client, system_admin.id, user.id, payload
         )
 
         await test_db_session.refresh(user)
@@ -95,8 +100,10 @@ class TestSuccess:
     async def test_nothing_changes_if_payload_is_empty(
         self,
         test_db_session: AsyncSession,
+        redis_client: Redis,
         system_admin: User,
         mock_send_admin_identity_override_email,
+        mock_users_delete_cache_system_admin,
     ) -> None:
         user = await make_teacher(test_db_session)
 
@@ -109,7 +116,11 @@ class TestSuccess:
         }
 
         await UserServiceAdmin.update_identity(
-            test_db_session, system_admin.id, user.id, UpdateIdentityAdmin()
+            test_db_session,
+            redis_client,
+            system_admin.id,
+            user.id,
+            UpdateIdentityAdmin(),
         )
 
         await test_db_session.refresh(user)
@@ -125,8 +136,10 @@ class TestSuccess:
     async def test_nothing_changes_if_current_values_are_provided(
         self,
         test_db_session: AsyncSession,
+        redis_client: Redis,
         system_admin: User,
         mock_send_admin_identity_override_email,
+        mock_users_delete_cache_system_admin,
     ) -> None:
         user = await make_teacher(test_db_session)
 
@@ -137,6 +150,7 @@ class TestSuccess:
 
         await UserServiceAdmin.update_identity(
             test_db_session,
+            redis_client,
             system_admin.id,
             user.id,
             UpdateIdentityAdmin.model_validate(original_values),
@@ -152,32 +166,41 @@ class TestSuccess:
 
 class TestEligibleUsers:
     async def test_updating_system_admin_is_prevented(
-        self, test_db_session: AsyncSession, system_admin: User
+        self, test_db_session: AsyncSession, redis_client: Redis, system_admin: User
     ) -> None:
         with pytest.raises(UserNotFoundError):
             await UserServiceAdmin.update_identity(
                 test_db_session,
+                redis_client,
                 actor_id=system_admin.id,
                 user_id=system_admin.id,
                 payload=UpdateIdentityAdmin(),
             )
 
     async def test_system_admin_cannot_update_another_system_admin(
-        self, test_db_session: AsyncSession, system_admin: User
+        self, test_db_session: AsyncSession, redis_client: Redis, system_admin: User
     ) -> None:
         user = await make_system_admin(test_db_session)
 
         with pytest.raises(UserNotFoundError):
             await UserServiceAdmin.update_identity(
-                test_db_session, system_admin.id, user.id, payload=UpdateIdentityAdmin()
+                test_db_session,
+                redis_client,
+                system_admin.id,
+                user.id,
+                payload=UpdateIdentityAdmin(),
             )
 
     async def test_raise_error_on_unknown_users(
-        self, test_db_session: AsyncSession, system_admin: User
+        self, test_db_session: AsyncSession, redis_client: Redis, system_admin: User
     ) -> None:
         with pytest.raises(UserNotFoundError):
             await UserServiceAdmin.update_identity(
-                test_db_session, system_admin.id, 999999, payload=UpdateIdentityAdmin()
+                test_db_session,
+                redis_client,
+                system_admin.id,
+                999999,
+                payload=UpdateIdentityAdmin(),
             )
 
 
@@ -185,15 +208,17 @@ class TestEmailSending:
     async def test_identity_override_email_is_sent(
         self,
         test_db_session: AsyncSession,
+        redis_client: Redis,
         system_admin: User,
         mock_send_admin_identity_override_email,
+        mock_users_delete_cache_system_admin,
     ) -> None:
         user = await make_teacher(test_db_session)
 
         payload = UpdateIdentityAdmin(phone_number="+992111222333")
 
         await UserServiceAdmin.update_identity(
-            test_db_session, system_admin.id, user.id, payload
+            test_db_session, redis_client, system_admin.id, user.id, payload
         )
 
         mock_send_admin_identity_override_email.assert_called_once_with(user.email)
@@ -214,6 +239,7 @@ class TestDBConstraints:
     async def test_duplicate_phone_number_is_caught(
         self,
         test_db_session: AsyncSession,
+        redis_client: Redis,
         system_admin: User,
         role: UserRole,
         phone_number: str,
@@ -228,12 +254,12 @@ class TestDBConstraints:
 
         with pytest.raises(PhoneNumberAlreadyTakenError):
             await UserServiceAdmin.update_identity(
-                test_db_session, system_admin.id, user.id, payload
+                test_db_session, redis_client, system_admin.id, user.id, payload
             )
 
 
 class TestCacheHandling:
-    async def test_successful_updating_invalidates_caches(
+    async def test_successful_updating_calls_delete_cache(
         self,
         test_db_session: AsyncSession,
         redis_client: Redis,
@@ -252,6 +278,6 @@ class TestCacheHandling:
         mock_users_delete_cache_system_admin.assert_called_once_with(
             redis_client,
             UsersCacheKeys.detailed_response_key_admin(user.id),
-            UsersCacheKeys.detailed_response_key_self(user.id),
+            UsersCacheKeys.detailed_response_key_staff(user.id),
             UsersCacheKeys.detailed_response_key_self(user.id),
         )
