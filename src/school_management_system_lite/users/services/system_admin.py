@@ -26,6 +26,7 @@ from school_management_system_lite.users.schemas.system_admin import (
     UpdateEmailAdmin,
     UpdateIdentityAdmin,
 )
+from school_management_system_lite.users.utils.constants import SYSTEM_ADMIN_ROLE
 from school_management_system_lite.users.utils.exceptions import (
     UserAlreadyActive,
     UserAlreadyInactive,
@@ -127,7 +128,9 @@ class UserServiceAdmin:
         user_id: int,
         payload: UpdateIdentityAdmin,
     ) -> None:
-        user = await UserRepositoryAdmin.get_by_id(db_session, user_id)
+        user = await UserRepositoryAdmin.get_by_id(
+            db_session, user_id, excluded_roles=SYSTEM_ADMIN_ROLE
+        )
         if user is None:
             raise UserNotFoundError()
 
@@ -137,7 +140,9 @@ class UserServiceAdmin:
         try:
             is_new_value = False
 
-            for field, value in payload.model_dump(exclude_unset=True).items():
+            for field, value in payload.model_dump(
+                exclude_unset=True, exclude_none=True
+            ).items():
                 if getattr(user, field) != value:
                     setattr(user, field, value)
 
@@ -147,6 +152,7 @@ class UserServiceAdmin:
                 return
 
             await db_session.commit()
+            await db_session.refresh(user)
 
         except IntegrityError as exc:
             await db_session.rollback()
@@ -155,7 +161,7 @@ class UserServiceAdmin:
                 "updating_identity_failed",
                 failure_reason="integrity_error",
                 error=str(exc.orig),
-                user_id=user.id,
+                user_id=user_id,
                 requested_by=actor_id,
             )
 
@@ -170,7 +176,7 @@ class UserServiceAdmin:
 
         logger.info(
             "identity_updated",
-            user_id=user.id,
+            user_id=user_id,
             actor_id=actor_id,
             method="admin_update",
         )

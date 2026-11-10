@@ -99,8 +99,8 @@ class AuthService:
         access_token = create_access_token(
             user_id=user.id,
             role=user.role,
-            access_token_version=user_session.access_token_version,
             session_id=user_session.id,
+            access_token_version=user_session.access_token_version,
             settings=settings,
         )
 

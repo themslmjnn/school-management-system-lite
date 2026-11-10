@@ -64,8 +64,8 @@ async def get_current_user(
 
         user_id = int(payload["sub"])
         role = UserRole(payload["role"])
-        access_token_version = int(payload["atv"])
         session_id = int(payload["session_id"])
+        access_token_version = int(payload["atv"])
 
     except ValueError, TypeError, KeyError:
         raise InvalidAccessTokenError()
