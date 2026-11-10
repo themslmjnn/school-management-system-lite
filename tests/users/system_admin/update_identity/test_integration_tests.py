@@ -112,8 +112,6 @@ class TestEligibleUsers:
     ) -> None:
         user = await make_system_admin(test_db_session)
 
-        user = await make_system_admin(test_db_session)
-
         header = await make_auth_header(test_db_session, system_admin)
 
         response = await client.patch(

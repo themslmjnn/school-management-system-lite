@@ -1,6 +1,8 @@
 import pytest
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from school_management_system_lite.core.redis.cache_keys import UsersCacheKeys
 from school_management_system_lite.users.models.user import User
 from school_management_system_lite.users.schemas.system_admin import UpdateIdentityAdmin
 from school_management_system_lite.users.services.system_admin import UserServiceAdmin
@@ -24,6 +26,7 @@ class TestSuccess:
         test_db_session: AsyncSession,
         system_admin: User,
         mock_send_admin_identity_override_email,
+        mock_users_delete_cache_system_admin,
     ) -> None:
         user = await make_teacher(test_db_session)
 
@@ -227,3 +230,28 @@ class TestDBConstraints:
             await UserServiceAdmin.update_identity(
                 test_db_session, system_admin.id, user.id, payload
             )
+
+
+class TestCacheHandling:
+    async def test_successful_updating_invalidates_caches(
+        self,
+        test_db_session: AsyncSession,
+        redis_client: Redis,
+        system_admin: User,
+        mock_send_admin_identity_override_email,
+        mock_users_delete_cache_system_admin,
+    ) -> None:
+        user = await make_teacher(test_db_session)
+
+        payload = UpdateIdentityAdmin(first_name="updated-first-name")
+
+        await UserServiceAdmin.update_identity(
+            test_db_session, redis_client, system_admin.id, user.id, payload
+        )
+
+        mock_users_delete_cache_system_admin.assert_called_once_with(
+            redis_client,
+            UsersCacheKeys.detailed_response_key_admin(user.id),
+            UsersCacheKeys.detailed_response_key_self(user.id),
+            UsersCacheKeys.detailed_response_key_self(user.id),
+        )

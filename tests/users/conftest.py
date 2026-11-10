@@ -25,3 +25,11 @@ def mock_send_admin_identity_override_email(mocker):
         "school_management_system_lite.users.services.system_admin.send_admin_identity_override_email",
         new_callable=AsyncMock,
     )
+
+
+@pytest.fixture
+def mock_users_delete_cache_system_admin(mocker):
+    return mocker.patch(
+        "school_management_system_lite.users.services.system_admin.delete_cache",
+        new_callable=AsyncMock,
+    )
