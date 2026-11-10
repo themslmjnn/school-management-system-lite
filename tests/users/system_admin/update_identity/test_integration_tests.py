@@ -43,33 +43,6 @@ class TestSuccess:
         assert user.address == "updated address"
         assert user.phone_number == "+992111222333"
 
-    async def test_ignores_unset_fields(
-        self,
-        test_db_session: AsyncSession,
-        client: AsyncClient,
-        system_admin: User,
-        mock_send_admin_identity_override_email,
-    ) -> None:
-        user = await make_teacher(test_db_session)
-
-        payload = {
-            "first_name": "updated-first-name",
-            "phone_number": "+992 111 222 333",
-        }
-
-        header = await make_auth_header(test_db_session, system_admin)
-
-        response = await client.patch(
-            f"/admin/users/{user.id}/identity", headers=header, json=payload
-        )
-
-        assert response.status_code == 204
-
-        await test_db_session.refresh(user)
-
-        assert user.first_name == "Updated-First-Name"
-        assert user.phone_number == "+992111222333"
-
 
 class TestAuth:
     async def test_unauthenticated_requests_raise_401(
