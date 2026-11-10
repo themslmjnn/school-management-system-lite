@@ -61,6 +61,63 @@ class TestSuccess:
         assert user.first_name == "Updated-First-Name"
         assert user.phone_number == "+992111222333"
 
+    async def test_nothing_changes_if_payload_is_empty(
+        self,
+        test_db_session: AsyncSession,
+        system_admin: User,
+        mock_send_admin_identity_override_email,
+    ) -> None:
+        user = await make_teacher(test_db_session)
+
+        original_values = {
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "middle_name": user.middle_name,
+            "address": user.address,
+            "phone_number": user.phone_number,
+        }
+
+        await UserServiceAdmin.update_identity(
+            test_db_session, system_admin.id, user.id, UpdateIdentityAdmin()
+        )
+
+        await test_db_session.refresh(user)
+
+        assert user.first_name == original_values["first_name"]
+        assert user.last_name == original_values["last_name"]
+        assert user.middle_name == original_values["middle_name"]
+        assert user.address == original_values["address"]
+        assert user.phone_number == original_values["phone_number"]
+
+        mock_send_admin_identity_override_email.assert_not_called()
+
+    async def test_nothing_changes_if_current_values_are_provided(
+        self,
+        test_db_session: AsyncSession,
+        system_admin: User,
+        mock_send_admin_identity_override_email,
+    ) -> None:
+        user = await make_teacher(test_db_session)
+
+        original_values = {
+            "first_name": user.first_name,
+            "phone_number": user.phone_number,
+        }
+
+        await UserServiceAdmin.update_identity(
+            test_db_session,
+            system_admin.id,
+            user.id,
+            UpdateIdentityAdmin.model_validate(original_values),
+        )
+
+        await test_db_session.refresh(user)
+
+        assert user.first_name == original_values["first_name"]
+        assert user.phone_number == original_values["phone_number"]
+
+        mock_send_admin_identity_override_email.assert_not_called()
+
 
 class TestEmailSending:
     async def test_identity_override_email_is_sent(

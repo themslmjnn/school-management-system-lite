@@ -34,9 +34,9 @@ async def make_user(
     n = _next()
 
     user = User(
-        first_name=first_name or "Test_first_name",
-        last_name=last_name or "Test_last_name",
-        middle_name=middle_name or "Test_middle_name",
+        first_name=first_name or "Test-First-Name",
+        last_name=last_name or "Test-Last-Name",
+        middle_name=middle_name or "Test-Middle-Name",
         date_of_birth=date_of_birth
         if date_of_birth is not None
         else (date(2008, 1, 1) if role == UserRole.STUDENT else date(2000, 1, 1)),

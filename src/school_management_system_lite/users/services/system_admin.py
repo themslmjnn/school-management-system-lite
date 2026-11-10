@@ -131,9 +131,20 @@ class UserServiceAdmin:
         if user is None:
             raise UserNotFoundError()
 
+        if payload is None:
+            return
+
         try:
+            is_new_value = False
+
             for field, value in payload.model_dump(exclude_unset=True).items():
-                setattr(user, field, value)
+                if getattr(user, field) != value:
+                    setattr(user, field, value)
+
+                    is_new_value = True
+
+            if not is_new_value:
+                return
 
             await db_session.commit()
 
@@ -175,9 +186,14 @@ class UserServiceAdmin:
         if user is None:
             raise UserNotFoundError()
 
+        if payload is None:
+            return
+
         try:
-            if payload.email is not None:
-                user.email = payload.email
+            if user.email == payload.email:
+                return
+
+            user.email = payload.email
 
             subject, html_body = build_admin_email_override_email(
                 user.email,
