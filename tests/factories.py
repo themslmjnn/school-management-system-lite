@@ -18,7 +18,7 @@ def _next() -> int:
 
 
 async def make_user(
-    db_test_session: AsyncSession,
+    test_db_session: AsyncSession,
     *,
     role: UserRole = UserRole.STUDENT,
     status: UserStatus = UserStatus.ACTIVE,
@@ -48,8 +48,8 @@ async def make_user(
         password_hash=hash_password(password) if password else None,
     )
 
-    db_test_session.add(user)
-    await db_test_session.flush()
+    test_db_session.add(user)
+    await test_db_session.flush()
 
     _, activation_token_hash = generate_token()
 
@@ -63,42 +63,42 @@ async def make_user(
             ),
         )
 
-        db_test_session.add(new_activation)
+        test_db_session.add(new_activation)
 
-    db_test_session.add(UserSession(user_id=user.id))
+    test_db_session.add(UserSession(user_id=user.id))
 
-    await db_test_session.flush()
+    await test_db_session.flush()
 
     return user
 
 
-async def make_system_admin(db_test_session: AsyncSession, **kwargs) -> User:
+async def make_system_admin(test_db_session: AsyncSession, **kwargs) -> User:
     return await make_user(
-        db_test_session,
+        test_db_session,
         role=UserRole.SYSTEM_ADMIN,
         **kwargs,
     )
 
 
-async def make_director(db_test_session: AsyncSession, **kwargs) -> User:
+async def make_director(test_db_session: AsyncSession, **kwargs) -> User:
     return await make_user(
-        db_test_session,
+        test_db_session,
         role=UserRole.DIRECTOR,
         **kwargs,
     )
 
 
-async def make_teacher(db_test_session: AsyncSession, **kwargs) -> User:
+async def make_teacher(test_db_session: AsyncSession, **kwargs) -> User:
     return await make_user(
-        db_test_session,
+        test_db_session,
         role=UserRole.TEACHER,
         **kwargs,
     )
 
 
-async def make_student(db_test_session: AsyncSession, **kwargs) -> User:
+async def make_student(test_db_session: AsyncSession, **kwargs) -> User:
     return await make_user(
-        db_test_session,
+        test_db_session,
         role=UserRole.STUDENT,
         **kwargs,
     )

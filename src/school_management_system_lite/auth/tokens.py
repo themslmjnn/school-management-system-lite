@@ -15,15 +15,15 @@ def create_access_token(
     *,
     user_id: int,
     role: UserRole,
-    access_token_version: int,
     session_id: int,
+    access_token_version: int,
     settings: Settings,
 ) -> str:
     payload = {
         "sub": str(user_id),
         "role": role,
-        "atv": access_token_version,
         "session_id": session_id,
+        "atv": access_token_version,
         "type": "access",
         "exp": datetime.now(UTC)
         + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRES_MINUTES),
