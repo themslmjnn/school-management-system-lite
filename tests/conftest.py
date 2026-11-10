@@ -10,6 +10,10 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from school_management_system_lite.auth.repositories.session import (
+    UserSessionRepository,
+)
+from school_management_system_lite.auth.tokens import create_access_token
 from school_management_system_lite.core.config import get_settings
 from school_management_system_lite.core.dependencies import get_db_session
 from school_management_system_lite.core.redis.client import build_redis
@@ -93,34 +97,54 @@ async def test_db_session(
 
 
 @pytest_asyncio.fixture
-async def redis_client() -> AsyncIterator[Redis]:
+async def redis_client() -> AsyncIterator[Redis | None]:
     app.state.settings = get_settings()
 
-    redis: Redis = build_redis(app.state.settings)
-
-    client: Redis = app.state.redis
+    redis = build_redis(app.state.settings)
 
     try:
-        await client.flushdb()
+        await redis.ping()
 
-        yield client
+    except Exception:
+        yield None
+
+        await redis.aclose()
+
+        return
+
+    app.state.redis = redis
+
+    try:
+        await redis.flushdb()
+
+        yield redis
 
     finally:
         await redis.aclose()
 
-        del app.state.redis
+        app.state.redis = None
 
 
 @pytest_asyncio.fixture
-async def client(
-    test_db_session: AsyncSession,
-    redis_client: Redis,
-) -> AsyncIterator[AsyncClient]:
+async def client(test_db_session: AsyncSession) -> AsyncIterator[AsyncClient]:
     async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
+        transport=ASGITransport(app=app), base_url="http://test"
     ) as async_client:
         yield async_client
+
+
+async def make_auth_header(test_db_session: AsyncSession, user: User) -> dict:
+    user_session = await UserSessionRepository.get_by_user_id(test_db_session, user.id)
+
+    access_token = create_access_token(
+        user_id=user.id,
+        role=user.role,
+        session_id=user_session.id,
+        access_token_version=user_session.access_token_version,
+        settings=get_settings(),
+    )
+
+    return {"Authorization": f"Bearer {access_token}"}
 
 
 @pytest_asyncio.fixture
