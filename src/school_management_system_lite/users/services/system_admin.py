@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import structlog
+from redis.asyncio import Redis
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +15,8 @@ from school_management_system_lite.core.email.templates.users import (
     build_admin_email_override_email,
     send_admin_identity_override_email,
 )
+from school_management_system_lite.core.redis.cache_keys import UsersCacheKeys
+from school_management_system_lite.core.redis.wrappers import delete_cache
 from school_management_system_lite.core.security import generate_token
 from school_management_system_lite.emails.enums import EmailType
 from school_management_system_lite.emails.models import Email
@@ -124,6 +127,7 @@ class UserServiceAdmin:
     @staticmethod
     async def update_identity(
         db_session: AsyncSession,
+        redis: Redis,
         actor_id: int,
         user_id: int,
         payload: UpdateIdentityAdmin,
@@ -133,9 +137,6 @@ class UserServiceAdmin:
         )
         if user is None:
             raise UserNotFoundError()
-
-        if payload is None:
-            return
 
         try:
             is_new_value = False
@@ -169,6 +170,13 @@ class UserServiceAdmin:
 
             raise
 
+        await delete_cache(
+            redis,
+            UsersCacheKeys.detailed_response_key_admin(user_id),
+            UsersCacheKeys.detailed_response_key_self(user_id),
+            UsersCacheKeys.detailed_response_key_self(user_id),
+        )
+
         send_email_in_background(
             send_admin_identity_override_email(user.email),
             email_type=EmailType.ADMIN_IDENTITY_OVERRIDE,
@@ -184,19 +192,19 @@ class UserServiceAdmin:
     @staticmethod
     async def update_email(
         db_session: AsyncSession,
+        redis: Redis,
         actor_id: int,
         user_id: int,
         payload: UpdateEmailAdmin,
     ) -> None:
-        user = await UserRepositoryAdmin.get_by_id(db_session, user_id)
+        user = await UserRepositoryAdmin.get_by_id(
+            db_session, user_id, excluded_roles=SYSTEM_ADMIN_ROLE
+        )
         if user is None:
             raise UserNotFoundError()
 
-        if payload is None:
-            return
-
         try:
-            if user.email == payload.email:
+            if user.email == payload.email or payload.email is None:
                 return
 
             user.email = payload.email
@@ -224,7 +232,7 @@ class UserServiceAdmin:
                 "updating_email_failed",
                 failure_reason="integrity_error",
                 error=str(exc.orig),
-                user_id=user.id,
+                user_id=user_id,
                 requested_by=actor_id,
             )
 
@@ -232,9 +240,16 @@ class UserServiceAdmin:
 
             raise
 
+        await delete_cache(
+            redis,
+            UsersCacheKeys.detailed_response_key_admin(user_id),
+            UsersCacheKeys.detailed_response_key_self(user_id),
+            UsersCacheKeys.detailed_response_key_self(user_id),
+        )
+
         logger.info(
             "email_updated",
-            user_id=user.id,
+            user_id=user_id,
             actor_id=actor_id,
             method="admin_update",
         )

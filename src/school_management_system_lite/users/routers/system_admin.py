@@ -5,6 +5,7 @@ from fastapi import APIRouter, Path, status
 
 from school_management_system_lite.core.dependencies import (
     db_session_dependency,
+    redis_dependency,
     require_system_admin,
 )
 from school_management_system_lite.users.schemas.system_admin import (
@@ -42,12 +43,13 @@ async def register_user(
 )
 async def update_identity(
     db_session: db_session_dependency,
+    redis: redis_dependency,
     current_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
     payload: UpdateIdentityAdmin,
 ):
     return await UserServiceAdmin.update_identity(
-        db_session, current_user.user_id, user_id, payload
+        db_session, redis, current_user.user_id, user_id, payload
     )
 
 
@@ -57,12 +59,13 @@ async def update_identity(
 )
 async def update_email(
     db_session: db_session_dependency,
+    redis: redis_dependency,
     current_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
     payload: UpdateEmailAdmin,
 ):
     return await UserServiceAdmin.update_email(
-        db_session, current_user.user_id, user_id, payload
+        db_session, redis, current_user.user_id, user_id, payload
     )
 
 
