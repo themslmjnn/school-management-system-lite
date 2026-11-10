@@ -48,7 +48,9 @@ async def update_user(
     return await UserServiceAdmin.update_user(db_session, user_id, payload)
 
 
-@router.patch("/admin/users/{user_id}/deactivation", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch(
+    "/admin/users/{user_id}/deactivation", status_code=status.HTTP_204_NO_CONTENT
+)
 async def deactivate_user(
     db_session: db_session_dependency,
     user_id: Annotated[int, Path(ge=1)],
@@ -56,7 +58,9 @@ async def deactivate_user(
     await UserServiceAdmin.deactivate_user(db_session, user_id)
 
 
-@router.patch("/admin/users/{user_id}/activation", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch(
+    "/admin/users/{user_id}/activation", status_code=status.HTTP_204_NO_CONTENT
+)
 async def activate_user(
     db_session: db_session_dependency,
     user_id: Annotated[int, Path(ge=1)],
@@ -65,7 +69,9 @@ async def activate_user(
 
 
 @router.get(
-    "/admin/users", response_model=Sequence[UserResponseBaseAdmin], status_code=status.HTTP_200_OK
+    "/admin/users",
+    response_model=Sequence[UserResponseBaseAdmin],
+    status_code=status.HTTP_200_OK,
 )
 async def get_users(db_session: db_session_dependency):
     return await UserServiceAdmin.get_users(db_session)
