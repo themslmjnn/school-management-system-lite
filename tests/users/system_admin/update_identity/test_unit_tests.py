@@ -12,12 +12,25 @@ from tests.factories import make_director, make_student, make_teacher, make_user
 
 
 class TestSuccess:
-    async def test_successful_update(self, test_db_session: AsyncSession, system_admin: User, mock_send_admin_identity_override_email) -> None:
+    async def test_successful_update(
+        self,
+        test_db_session: AsyncSession,
+        system_admin: User,
+        mock_send_admin_identity_override_email,
+    ) -> None:
         user = await make_teacher(test_db_session)
 
-        payload = UpdateIdentityAdmin(first_name="updated-first-name", last_name="updated-last-name", middle_name="updated-middle-name", address="updated address", phone_number="+992 111 222 333")
+        payload = UpdateIdentityAdmin(
+            first_name="updated-first-name",
+            last_name="updated-last-name",
+            middle_name="updated-middle-name",
+            address="updated address",
+            phone_number="+992 111 222 333",
+        )
 
-        await UserServiceAdmin.update_identity(test_db_session, system_admin.id, user.id, payload)
+        await UserServiceAdmin.update_identity(
+            test_db_session, system_admin.id, user.id, payload
+        )
 
         await test_db_session.refresh(user)
 
@@ -27,17 +40,27 @@ class TestSuccess:
         assert user.address == "updated address"
         assert user.phone_number == "+992111222333"
 
-    async def test_ignores_unset_fields(self, test_db_session: AsyncSession, system_admin: User, mock_send_admin_identity_override_email) -> None:
+    async def test_ignores_unset_fields(
+        self,
+        test_db_session: AsyncSession,
+        system_admin: User,
+        mock_send_admin_identity_override_email,
+    ) -> None:
         user = await make_teacher(test_db_session)
 
-        payload = UpdateIdentityAdmin(first_name="updated-first-name", phone_number="+992 111 222 333")
+        payload = UpdateIdentityAdmin(
+            first_name="updated-first-name", phone_number="+992 111 222 333"
+        )
 
-        await UserServiceAdmin.update_identity(test_db_session, system_admin.id, user.id, payload)
+        await UserServiceAdmin.update_identity(
+            test_db_session, system_admin.id, user.id, payload
+        )
 
         await test_db_session.refresh(user)
 
         assert user.first_name == "Updated-First-Name"
         assert user.phone_number == "+992111222333"
+
 
 class TestEmailSending:
     async def test_identity_override_email_is_sent(

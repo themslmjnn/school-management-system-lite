@@ -21,4 +21,7 @@ def valid_user_payload():
 
 @pytest.fixture
 def mock_send_admin_identity_override_email(mocker):
-    return mocker.patch("school_management_system_lite.users.services.system_admin.send_admin_identity_override_email", new_callable=AsyncMock)
+    return mocker.patch(
+        "school_management_system_lite.users.services.system_admin.send_admin_identity_override_email",
+        new_callable=AsyncMock,
+    )
