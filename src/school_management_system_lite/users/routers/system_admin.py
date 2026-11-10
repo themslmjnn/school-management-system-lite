@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from typing import Annotated
 
-from fastapi import APIRouter, Path, Request, status
+from fastapi import APIRouter, Path, status
 
 from school_management_system_lite.core.dependencies import (
     db_session_dependency,
@@ -16,13 +16,14 @@ from school_management_system_lite.users.schemas.system_admin import (
 from school_management_system_lite.users.services.system_admin import UserServiceAdmin
 
 router = APIRouter(
-    prefix="/admin/users",
     tags=["Users - System Admin"],
 )
 
 
 @router.post(
-    "", response_model=UserResponseDetailedAdmin, status_code=status.HTTP_201_CREATED
+    "/admin/users",
+    response_model=UserResponseDetailedAdmin,
+    status_code=status.HTTP_201_CREATED,
 )
 async def register_user(
     db_session: db_session_dependency,
@@ -35,7 +36,7 @@ async def register_user(
 
 
 @router.patch(
-    "/{user_id}",
+    "/admin/users/{user_id}",
     response_model=UserResponseDetailedAdmin,
     status_code=status.HTTP_200_OK,
 )
@@ -47,7 +48,7 @@ async def update_user(
     return await UserServiceAdmin.update_user(db_session, user_id, payload)
 
 
-@router.patch("/{user_id}/deactivation", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/admin/users/{user_id}/deactivation", status_code=status.HTTP_204_NO_CONTENT)
 async def deactivate_user(
     db_session: db_session_dependency,
     user_id: Annotated[int, Path(ge=1)],
@@ -55,7 +56,7 @@ async def deactivate_user(
     await UserServiceAdmin.deactivate_user(db_session, user_id)
 
 
-@router.patch("/{user_id}/activation", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/admin/users/{user_id}/activation", status_code=status.HTTP_204_NO_CONTENT)
 async def activate_user(
     db_session: db_session_dependency,
     user_id: Annotated[int, Path(ge=1)],
@@ -64,14 +65,14 @@ async def activate_user(
 
 
 @router.get(
-    "", response_model=Sequence[UserResponseBaseAdmin], status_code=status.HTTP_200_OK
+    "/admin/users", response_model=Sequence[UserResponseBaseAdmin], status_code=status.HTTP_200_OK
 )
 async def get_users(db_session: db_session_dependency):
     return await UserServiceAdmin.get_users(db_session)
 
 
 @router.get(
-    "/{user_id}",
+    "/admin/users/{user_id}",
     response_model=UserResponseDetailedAdmin,
     status_code=status.HTTP_200_OK,
 )

@@ -38,10 +38,12 @@ class UserAlreadyActive(AppException):
 
 # EXCEPTION HANDLERS
 def handle_phone_number_integrity_error(exc: IntegrityError) -> None:
-    if "uq_users_phone_number" in str(exc.orig):
+    if "uq_users_phone_number" in str(exc.orig) or "users.phone_number" in str(
+        exc.orig
+    ):
         raise PhoneNumberAlreadyTakenError()
 
 
 def handle_email_integrity_error(exc: IntegrityError) -> None:
-    if "uq_users_email" in str(exc.orig):
+    if "uq_users_email" in str(exc.orig) or "users.email" in str(exc.orig):
         raise EmailAlreadyTakenError()
