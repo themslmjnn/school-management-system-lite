@@ -39,22 +39,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     Manage the lifetime of shared application resources.
 
     Startup:
-    1. Read settings from app.state.
+    1. Read application settings from app.state.
     2. Build the database engine and Redis client.
     3. Verify that PostgreSQL is reachable.
        Database failure prevents the application from starting.
     4. Check Redis connectivity.
-       Redis is optional, so Redis failure is logged but does not
-       prevent the application from starting.
-    5. Attach the database engine, session factory, and Redis client
-       to app.state.
-    6. Start the email worker.
-    7. Yield control to the application.
+       Redis is optional, so a Redis failure is logged without
+       preventing the application from starting.
+    5. Build the Resend HTTP client in staging and production.
+       Resend availability is not checked during startup because
+       temporary Resend outages should not prevent the application
+       from starting.
+    6. Attach shared resources to app.state.
+    7. Start the email worker.
+    8. Yield control to the application.
 
     Shutdown:
     1. Cancel and wait for the email worker, if it was started.
-    2. Close the Redis client.
-    3. Dispose of the database engine.
+    2. Close the Resend HTTP client, if it was created.
+    3. Close the Redis client.
+    4. Dispose of the database engine.
 
     Shutdown continues even if an individual cleanup step fails.
     """
@@ -66,8 +70,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     db_engine: AsyncEngine = build_db_engine(settings)
     redis_client: Redis = build_redis_client(settings)
 
+    resend_client: AsyncClient | None = None
+
     if settings.ENVIRONMENT in ("staging", "production"):
-        resend_client: AsyncClient = build_resend_client()
+        resend_client = build_resend_client()
 
     email_worker_task: asyncio.Task[None] | None = None
 
@@ -87,16 +93,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         except Exception as exc:
             logger.warning("redis_connection_failed", error=str(exc))
 
+        if settings.ENVIRONMENT in ("staging", "production") and resend_client is None:
+            raise RuntimeError(
+                "Resend client must be reachable in staging and production"
+            )
+
         app.state.db_engine = db_engine
         app.state.session_factory = build_session_factory(db_engine)
-
-        if settings.ENVIRONMENT in ("staging", "production"):
-            app.state.resend_client = resend_client
+        app.state.resend_client = resend_client
 
         email_worker_task = asyncio.create_task(
             run_email_worker(
                 session_factory=app.state.session_factory,
                 settings=settings,
+                resend_client=app.state.resend_client,
             ),
             name="email_worker",
         )
@@ -134,16 +144,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
             logger.info("email_worker_stopped")
 
-        try:
-            if settings.ENVIRONMENT in ("staging", "production"):
+        if resend_client is not None:
+            try:
                 await resend_client.aclose()
 
-        except Exception as exc:
-            is_shutdown_completed = False
+                logger.info("resend_client_closed")
 
-            logger.exception(
-                "shutdown_step_failed", step="redis_client", error=str(exc)
-            )
+            except Exception as exc:
+                is_shutdown_completed = False
+
+                logger.exception(
+                    "shutdown_step_failed",
+                    step="resend_client",
+                    error=str(exc),
+                )
 
         shutdown = (
             ("redis_client", redis_client.aclose, "redis_client_closed"),
@@ -169,17 +183,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """
     Build and configure the FastAPI application.
 
-    1. Resolve settings once. Explicit settings are used in tests;
-       otherwise they are loaded through get_settings().
+    1. Resolve application settings once. Explicit settings are used
+       in tests; otherwise settings are loaded through get_settings().
     2. Configure application logging.
     3. Create the FastAPI application with the resource lifespan.
-    4. Attach settings to app.state.
-    5. Register exception handlers.
-    6. Register application routers.
+    4. Initialize optional shared resources on app.state.
+    5. Attach settings to app.state.
+    6. Register exception handlers.
+    7. Register application routers.
 
-    Database and Redis resources are created by the lifespan rather
-    than here. Tests that do not run the lifespan must provide any
-    required resources on app.state themselves.
+    Database, Redis, and Resend resources are created by the lifespan
+    rather than here. Tests that do not run the lifespan must provide
+    any required resources on app.state themselves.
     """
 
     settings = settings or get_settings()
@@ -190,6 +205,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.state.settings = settings
     app.state.redis_client = None
+    app.state.resend_client = None
 
     # EXCEPTIONS
     register_exception_handlers(app)

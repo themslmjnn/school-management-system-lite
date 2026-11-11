@@ -27,11 +27,10 @@ async def send_email(
     Raises on delivery failure — caller (worker) handles retry logic.
     """
 
-    if settings.ENVIRONMENT == "development":
-        if settings.MAILTRAP_PASSWORD is not None:
-            await send_via_mailtrap(subject, to_email, html_body)
-        else:
-            await send_via_resend(resend_client, subject, to_email, html_body)
+    if settings.ENVIRONMENT == "development" and settings.MAILTRAP_PASSWORD is not None:
+        await send_via_mailtrap(subject, to_email, html_body)
+    elif settings.ENVIRONMENT in ("staging", "production"):
+        await send_via_resend(resend_client, subject, to_email, html_body)
 
 
 async def send_email_safe(email_operation: Awaitable[Any], **log_context: Any) -> None:

@@ -1,6 +1,7 @@
 import asyncio
 
 import structlog
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from school_management_system_lite.core.config import Settings
@@ -12,7 +13,9 @@ from school_management_system_lite.emails.repository import EmailRepository
 logger = structlog.get_logger(__name__)
 
 
-async def _process_email(db_session: AsyncSession, record: Email) -> None:
+async def _process_email(
+    db_session: AsyncSession, resend_client: AsyncClient, record: Email
+) -> None:
     """
     Attempt to send one email and record the outcome.
 
@@ -28,6 +31,7 @@ async def _process_email(db_session: AsyncSession, record: Email) -> None:
     ):
         try:
             await send_email(
+                resend_client,
                 subject=record.subject,
                 to_email=record.recipient_email,
                 html_body=record.html_body,
@@ -68,7 +72,9 @@ async def _process_email(db_session: AsyncSession, record: Email) -> None:
 
 
 async def _run_sweep(
-    session_factory: async_sessionmaker[AsyncSession], settings: Settings
+    session_factory: async_sessionmaker[AsyncSession],
+    settings: Settings,
+    resend_client: AsyncClient,
 ) -> None:
     """
     One full sweep of the pending queue.
@@ -87,14 +93,16 @@ async def _run_sweep(
             logger.info("email_worker_sweep_batch", batch_size=len(batch))
 
             for record in batch:
-                await _process_email(session, record)
+                await _process_email(session, record, resend_client)
 
             if len(batch) < batch_size:
                 break
 
 
 async def run_email_worker(
-    session_factory: async_sessionmaker[AsyncSession], settings: Settings
+    session_factory: async_sessionmaker[AsyncSession],
+    settings: Settings,
+    resend_client: AsyncClient,
 ) -> None:
     logger.info(
         "email_worker_started",
@@ -104,7 +112,7 @@ async def run_email_worker(
 
     while True:
         try:
-            await _run_sweep(session_factory, settings)
+            await _run_sweep(session_factory, settings, resend_client)
 
         except asyncio.CancelledError:
             logger.info("email_worker_stopping")
