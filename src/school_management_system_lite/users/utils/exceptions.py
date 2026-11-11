@@ -24,16 +24,22 @@ class EmailAlreadyTakenError(AppException):
     error_code = "EMAIL_ALREADY_TAKEN"
 
 
-class UserAlreadyInactive(AppException):
+class UserAlreadyInactiveError(AppException):
     status_code = status.HTTP_409_CONFLICT
     detail = "User already inactive"
     error_code = "USER_ALREADY_INACTIVE"
 
 
-class UserAlreadyActive(AppException):
+class UserAlreadyActiveError(AppException):
     status_code = status.HTTP_409_CONFLICT
     detail = "User already active"
     error_code = "USER_ALREADY_ACTIVE"
+
+
+class UserStatusPendingActivationError(AppException):
+    status_code = status.HTTP_409_CONFLICT
+    detail = "User account status is pending activation"
+    error_code = "USER_STATUS_PENDING_ACTIVATION"
 
 
 # EXCEPTION HANDLERS
