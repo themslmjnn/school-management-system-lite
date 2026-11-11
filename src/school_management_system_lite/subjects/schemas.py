@@ -1,11 +1,11 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
-
-from school_management_system_lite.utils.base_schema import BaseSchema
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class SubjectResponseBase(BaseSchema):
+class SubjectResponseBase(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
     name: str
     code: str

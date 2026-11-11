@@ -1,6 +1,6 @@
 from fastapi import status
 
-from school_management_system_lite.core.exceptions.exceptions import AppException
+from school_management_system_lite.core.exceptions.handlers import AppException
 
 
 class AccessDeniedError(AppException):

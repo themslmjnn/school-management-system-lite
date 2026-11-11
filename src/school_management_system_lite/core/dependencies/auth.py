@@ -15,7 +15,7 @@ from school_management_system_lite.core.dependencies.database import (
 )
 from school_management_system_lite.core.exceptions.exceptions import AccessDeniedError
 from school_management_system_lite.users.repositories import (
-    system_admin as user_repository_admin,
+    base as user_base_repository,
 )
 from school_management_system_lite.users.utils.enums import UserRole, UserStatus
 
@@ -56,7 +56,7 @@ async def authenticate_user(
             detail="Session not found or has been revoked"
         )
 
-    user = await user_repository_admin.get_by_id(db_session, user_id)
+    user = await user_base_repository.get_by_id(db_session, user_id)
     if user is None:
         raise auth_exceptions.InvalidAccessTokenError()
 
