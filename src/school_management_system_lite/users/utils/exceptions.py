@@ -14,32 +14,32 @@ class UserNotFoundError(AppException):
 # HTTP409
 class PhoneNumberAlreadyTakenError(AppException):
     status_code = status.HTTP_409_CONFLICT
-    detail = "Phone number already taken"
+    detail = "Phone number is already taken"
     error_code = "PHONE_NUMBER_ALREADY_TAKEN"
 
 
 class EmailAlreadyTakenError(AppException):
     status_code = status.HTTP_409_CONFLICT
-    detail = "Email already taken"
+    detail = "Email is already taken"
     error_code = "EMAIL_ALREADY_TAKEN"
 
 
 class UserAlreadyInactiveError(AppException):
     status_code = status.HTTP_409_CONFLICT
-    detail = "User already inactive"
+    detail = "User is already inactive"
     error_code = "USER_ALREADY_INACTIVE"
 
 
 class UserAlreadyActiveError(AppException):
     status_code = status.HTTP_409_CONFLICT
-    detail = "User already active"
+    detail = "User is already active"
     error_code = "USER_ALREADY_ACTIVE"
 
 
-class UserStatusPendingActivationError(AppException):
+class UserPendingActivationError(AppException):
     status_code = status.HTTP_409_CONFLICT
-    detail = "User account status is pending activation"
-    error_code = "USER_STATUS_PENDING_ACTIVATION"
+    detail = "User status is pending activation"
+    error_code = "USER_PENDING_ACTIVATION"
 
 
 # EXCEPTION HANDLERS

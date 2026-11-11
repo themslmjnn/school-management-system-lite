@@ -4,7 +4,7 @@ from sqlalchemy import Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from school_management_system_lite.database.base import Base
-from school_management_system_lite.utils.enums import UserRole, UserStatus
+from school_management_system_lite.users.utils.enums import UserRole, UserStatus
 
 
 class User(Base):

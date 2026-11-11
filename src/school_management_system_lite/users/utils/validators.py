@@ -3,12 +3,7 @@ from datetime import UTC, date, datetime
 
 from pydantic_core import PydanticCustomError
 
-from school_management_system_lite.users.utils.constants import (
-    NON_STUDENT_MAX_AGE,
-    NON_STUDENT_MIN_AGE,
-    STUDENT_MAX_AGE,
-    STUDENT_MIN_AGE,
-)
+from school_management_system_lite.users.utils import constants as user_constants
 from school_management_system_lite.users.utils.helpers import calculate_age
 
 _NAME_PATTERN = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:['\-][A-Za-zÀ-ÖØ-öø-ÿ]+)*$")
@@ -64,15 +59,18 @@ def _validate_date_of_birth(
 
 def validate_date_of_birth_student(birth_date: date) -> date:
     return _validate_date_of_birth(
-        birth_date, min_age=STUDENT_MIN_AGE, max_age=STUDENT_MAX_AGE, subject="Student"
+        birth_date,
+        min_age=user_constants.STUDENT_MIN_AGE,
+        max_age=user_constants.STUDENT_MAX_AGE,
+        subject="Student",
     )
 
 
 def validate_date_of_birth_non_student(birth_date: date) -> date:
     return _validate_date_of_birth(
         birth_date,
-        min_age=NON_STUDENT_MIN_AGE,
-        max_age=NON_STUDENT_MAX_AGE,
+        min_age=user_constants.NON_STUDENT_MIN_AGE,
+        max_age=user_constants.NON_STUDENT_MAX_AGE,
         subject="User",
     )
 

@@ -1,4 +1,4 @@
-from school_management_system_lite.utils.enums import UserRole
+from school_management_system_lite.core.enums import UserRole
 
 STUDENT_MIN_AGE = 6
 STUDENT_MAX_AGE = 21

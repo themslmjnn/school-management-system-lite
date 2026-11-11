@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, status
 
-from school_management_system_lite.core.dependencies import db_session_dependency
+from school_management_system_lite.core.dependencies.auth import db_session_dependency
 from school_management_system_lite.groups.schemas import (
     CreateGroup,
     GroupResponseBase,

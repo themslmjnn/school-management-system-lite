@@ -9,20 +9,11 @@ from pydantic import (
     model_validator,
 )
 
-from school_management_system_lite.users.utils.shared_schemas import UserResponseBase
-from school_management_system_lite.users.utils.validators import (
-    validate_date_of_birth_non_student,
-    validate_date_of_birth_student,
-    validate_email,
-    validate_first_name,
-    validate_last_name,
-    validate_middle_name,
-    validate_phone_number,
-)
-from school_management_system_lite.utils.enums import UserRole, UserStatus
+from school_management_system_lite.users.utils import validators
+from school_management_system_lite.users.utils.enums import UserRole, UserStatus
 
 
-class UserResponseBaseAdmin(UserResponseBase):
+class UserResponseBaseAdmin(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -54,12 +45,12 @@ class CreateUserAdmin(BaseModel):
     @field_validator("first_name")
     @classmethod
     def _validate_first_name(cls, first_name: str) -> str:
-        return validate_first_name(first_name)
+        return validators.validate_first_name(first_name)
 
     @field_validator("last_name")
     @classmethod
     def _validate_last_name(cls, last_name: str) -> str:
-        return validate_last_name(last_name)
+        return validators.validate_last_name(last_name)
 
     @field_validator("middle_name")
     @classmethod
@@ -67,7 +58,7 @@ class CreateUserAdmin(BaseModel):
         if middle_name is None:
             return None
 
-        return validate_middle_name(middle_name)
+        return validators.validate_middle_name(middle_name)
 
     @field_validator("address")
     @classmethod
@@ -80,19 +71,19 @@ class CreateUserAdmin(BaseModel):
     @field_validator("phone_number")
     @classmethod
     def _validate_phone_number(cls, phone_number: str) -> str:
-        return validate_phone_number(phone_number)
+        return validators.validate_phone_number(phone_number)
 
     @field_validator("email")
     @classmethod
     def _validate_email(cls, email: str) -> str:
-        return validate_email(email)
+        return validators.validate_email(email)
 
     @model_validator(mode="after")
     def _validate_birth_date(self) -> CreateUserAdmin:
         if self.role in [UserRole.TEACHER, UserRole.DIRECTOR]:
-            validate_date_of_birth_non_student(self.date_of_birth)
+            validators.validate_date_of_birth_non_student(self.date_of_birth)
         elif self.role == UserRole.STUDENT:
-            validate_date_of_birth_student(self.date_of_birth)
+            validators.validate_date_of_birth_student(self.date_of_birth)
 
         return self
 
@@ -110,7 +101,7 @@ class UpdateUserIdentityAdmin(BaseModel):
         if first_name is None:
             return None
 
-        return validate_first_name(first_name)
+        return validators.validate_first_name(first_name)
 
     @field_validator("last_name")
     @classmethod
@@ -118,7 +109,7 @@ class UpdateUserIdentityAdmin(BaseModel):
         if last_name is None:
             return None
 
-        return validate_last_name(last_name)
+        return validators.validate_last_name(last_name)
 
     @field_validator("middle_name")
     @classmethod
@@ -126,7 +117,7 @@ class UpdateUserIdentityAdmin(BaseModel):
         if middle_name is None:
             return None
 
-        return validate_middle_name(middle_name)
+        return validators.validate_middle_name(middle_name)
 
     @field_validator("address")
     @classmethod
@@ -142,7 +133,7 @@ class UpdateUserIdentityAdmin(BaseModel):
         if phone_number is None:
             return None
 
-        return validate_phone_number(phone_number)
+        return validators.validate_phone_number(phone_number)
 
 
 class UpdateUserEmailAdmin(BaseModel):
@@ -154,4 +145,4 @@ class UpdateUserEmailAdmin(BaseModel):
         if email is None:
             return None
 
-        return validate_email(email)
+        return validators.validate_email(email)
