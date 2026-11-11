@@ -6,8 +6,13 @@ from redis.asyncio import Redis
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import school_management_system_lite.emails.repository as email_repository
 from school_management_system_lite.auth.models.activation import UserActivation
+from school_management_system_lite.auth.models.password_reset import UserPasswordReset
 from school_management_system_lite.auth.models.session import UserSession
+from school_management_system_lite.auth.repositories import (
+    password_reset as auth_password_reset_repository,
+)
 from school_management_system_lite.auth.repositories import (
     session as auth_session_repository,
 )
@@ -22,16 +27,20 @@ from school_management_system_lite.core.email.templates.admin_account_activation
 from school_management_system_lite.core.email.templates.admin_account_deactivation import (
     build_admin_account_deactivation_email,
 )
+from school_management_system_lite.core.email.templates.admin_password_reset import (
+    build_admin_password_reset_email,
+)
 from school_management_system_lite.core.email.templates.admin_user_email_override import (
     build_admin_email_override_email,
 )
 from school_management_system_lite.core.email.templates.admin_user_identity_override import (
     send_admin_identity_override_email,
 )
+from school_management_system_lite.core.enums import OrderBy
 from school_management_system_lite.core.redis.cache_keys import UsersCacheKeys
 from school_management_system_lite.core.redis.wrappers import delete_cache
 from school_management_system_lite.core.security import generate_token
-from school_management_system_lite.emails.enums import EmailType
+from school_management_system_lite.emails.enums import EmailStatus, EmailType
 from school_management_system_lite.emails.models import Email
 from school_management_system_lite.users.models import User
 from school_management_system_lite.users.repositories import (
@@ -75,6 +84,7 @@ async def register_user(
         await db_session.flush()
 
         raw_activation_token, activation_token_hash = generate_token()
+
         activation_token_expires_at = datetime.now(UTC) + timedelta(
             hours=settings.ACTIVATION_TOKEN_EXPIRES_HOURS
         )
@@ -379,6 +389,94 @@ async def activate_user_account(
 
     logger.info(
         "user_account_activated",
+        user_id=user_id,
+        actor_id=actor_id,
+    )
+
+
+async def request_password_reset(
+    db_session: AsyncSession,
+    actor_id: int,
+    user_id: int,
+) -> None:
+    settings = get_settings()
+
+    user = await user_base_repository.get_by_id(
+        db_session, user_id, excluded_roles=SYSTEM_ADMIN_ROLE
+    )
+    if user is None:
+        raise user_exceptions.UserNotFoundError()
+
+    if user.status == UserStatus.PENDING_ACTIVATION:
+        logger.warning(
+            "password_reset_request_denied",
+            denial_reason="cannot_create_request_for_pending_activation_users",
+            user_id=user_id,
+            requested_by=actor_id,
+        )
+
+        raise user_exceptions.UserPendingActivationError(
+            detail="Can not create password reset request for pending activation users"
+        )
+
+    password_reset = await auth_password_reset_repository.get_by_user_id(
+        db_session, user_id
+    )
+    email = await email_repository.get_by_recipient_email(
+        db_session,
+        user.email,
+        email_type=frozenset(
+            {EmailType.ADMIN_PASSWORD_RESET, EmailType.FORGOT_PASSWORD_REQUEST}
+        ),
+        status=EmailStatus.PENDING,
+        order_by=OrderBy.DESC,
+    )
+
+    condition = password_reset is not None or (
+        password_reset.password_reset_token_hash is None
+        and password_reset.password_reset_token_expires_at
+        - timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRES_MINUTES)
+        <= datetime.now(UTC)
+    )
+
+    if condition and email is not None:
+        logger.warning(
+            "password_reset_request_denied",
+            denial_reason="user_already_has_pending_requests",
+            user_id=user_id,
+        )
+
+        raise user_exceptions.PasswordResetAlreadyRequestedError()
+
+    raw_password_reset_token, password_reset_token_hash = generate_token()
+
+    password_reset_token_expires_at = datetime.now(UTC) + timedelta(
+        minutes=settings.PASSWORD_RESET_TOKEN_EXPIRES_MINUTES
+    )
+
+    subject, html_body = build_admin_password_reset_email(raw_password_reset_token)
+
+    db_session.add(
+        UserPasswordReset(
+            user_id=user.id,
+            password_reset_token_hash=password_reset_token_hash,
+            password_reset_token_expires_at=password_reset_token_expires_at,
+        )
+    )
+    db_session.add(
+        Email(
+            recipient_email=user.email,
+            subject=subject,
+            html_body=html_body,
+            email_type=EmailType.ADMIN_PASSWORD_RESET,
+            triggered_by=actor_id,
+        )
+    )
+
+    await db_session.commit()
+
+    logger.info(
+        "password_reset_requested",
         user_id=user_id,
         actor_id=actor_id,
     )

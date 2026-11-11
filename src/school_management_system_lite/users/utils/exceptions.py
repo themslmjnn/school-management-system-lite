@@ -42,6 +42,12 @@ class UserPendingActivationError(AppException):
     error_code = "USER_PENDING_ACTIVATION"
 
 
+class PasswordResetAlreadyRequestedError(AppException):
+    status_code = status.HTTP_409_CONFLICT
+    detail = "User already has pending password reset requests"
+    error_code = "PASSWORD_RESET_ALREADY_REQUESTED"
+
+
 # EXCEPTION HANDLERS
 def handle_phone_number_integrity_error(exc: IntegrityError) -> None:
     if "uq_users_phone_number" in str(exc.orig) or "users.phone_number" in str(
