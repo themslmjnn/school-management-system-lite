@@ -2,13 +2,13 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 
-from school_management_system_lite.core.config import Settings
-from school_management_system_lite.core.security import sha256
-from school_management_system_lite.utils.enums import UserRole
-from school_management_system_lite.utils.exceptions import (
+from school_management_system_lite.auth.utils.exceptions import (
     ExpiredAccessTokenError,
     InvalidAccessTokenError,
 )
+from school_management_system_lite.core.config import Settings
+from school_management_system_lite.core.security import sha256
+from school_management_system_lite.users.utils.enums import UserRole
 
 
 def create_access_token(
@@ -64,7 +64,7 @@ def create_refresh_token(
     settings: Settings,
 ) -> tuple[str, str]:
     payload = {
-        "sub": user_id,
+        "sub": str(user_id),
         "session_id": session_id,
         "type": "refresh",
         "exp": datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRES_DAYS),
