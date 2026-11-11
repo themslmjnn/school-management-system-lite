@@ -3,16 +3,18 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from school_management_system_lite.core.redis.cache_keys import UsersCacheKeys
-from school_management_system_lite.users.models.user import User
+from school_management_system_lite.users.models import User
 from school_management_system_lite.users.schemas.system_admin import (
     UpdateUserIdentityAdmin,
 )
-from school_management_system_lite.users.services.system_admin import UserServiceAdmin
+from school_management_system_lite.users.services import (
+    system_admin as user_service_admin,
+)
+from school_management_system_lite.users.utils.enums import UserRole
 from school_management_system_lite.users.utils.exceptions import (
     PhoneNumberAlreadyTakenError,
     UserNotFoundError,
 )
-from school_management_system_lite.utils.enums import UserRole
 from tests.factories import (
     make_director,
     make_student,
@@ -41,7 +43,7 @@ class TestSuccess:
             phone_number="+992 111 222 333",
         )
 
-        await UserServiceAdmin.update_user_identity(
+        await user_service_admin.update_user_identity(
             test_db_session, redis_client, system_admin.id, user.id, payload
         )
 
@@ -67,7 +69,7 @@ class TestSuccess:
             first_name="updated-first-name", phone_number="+992 111 222 333"
         )
 
-        await UserServiceAdmin.update_user_identity(
+        await user_service_admin.update_user_identity(
             test_db_session, redis_client, system_admin.id, user.id, payload
         )
 
@@ -92,7 +94,7 @@ class TestSuccess:
             first_name=None, phone_number="+992 111 222 333"
         )
 
-        await UserServiceAdmin.update_user_identity(
+        await user_service_admin.update_user_identity(
             test_db_session, redis_client, system_admin.id, user.id, payload
         )
 
@@ -119,7 +121,7 @@ class TestSuccess:
             "phone_number": user.phone_number,
         }
 
-        await UserServiceAdmin.update_user_identity(
+        await user_service_admin.update_user_identity(
             test_db_session,
             redis_client,
             system_admin.id,
@@ -152,7 +154,7 @@ class TestSuccess:
             "phone_number": user.phone_number,
         }
 
-        await UserServiceAdmin.update_user_identity(
+        await user_service_admin.update_user_identity(
             test_db_session,
             redis_client,
             system_admin.id,
@@ -173,7 +175,7 @@ class TestEligibleUsers:
         self, test_db_session: AsyncSession, redis_client: Redis, system_admin: User
     ) -> None:
         with pytest.raises(UserNotFoundError):
-            await UserServiceAdmin.update_user_identity(
+            await user_service_admin.update_user_identity(
                 test_db_session,
                 redis_client,
                 actor_id=system_admin.id,
@@ -187,7 +189,7 @@ class TestEligibleUsers:
         user = await make_system_admin(test_db_session)
 
         with pytest.raises(UserNotFoundError):
-            await UserServiceAdmin.update_user_identity(
+            await user_service_admin.update_user_identity(
                 test_db_session,
                 redis_client,
                 system_admin.id,
@@ -199,7 +201,7 @@ class TestEligibleUsers:
         self, test_db_session: AsyncSession, redis_client: Redis, system_admin: User
     ) -> None:
         with pytest.raises(UserNotFoundError):
-            await UserServiceAdmin.update_user_identity(
+            await user_service_admin.update_user_identity(
                 test_db_session,
                 redis_client,
                 system_admin.id,
@@ -221,7 +223,7 @@ class TestEmailSending:
 
         payload = UpdateUserIdentityAdmin(phone_number="+992111222333")
 
-        await UserServiceAdmin.update_user_identity(
+        await user_service_admin.update_user_identity(
             test_db_session, redis_client, system_admin.id, user.id, payload
         )
 
@@ -257,7 +259,7 @@ class TestDBConstraints:
         payload = UpdateUserIdentityAdmin(phone_number=phone_number)
 
         with pytest.raises(PhoneNumberAlreadyTakenError):
-            await UserServiceAdmin.update_user_identity(
+            await user_service_admin.update_user_identity(
                 test_db_session, redis_client, system_admin.id, user.id, payload
             )
 
@@ -275,7 +277,7 @@ class TestCacheHandling:
 
         payload = UpdateUserIdentityAdmin(first_name="updated-first-name")
 
-        await UserServiceAdmin.update_user_identity(
+        await user_service_admin.update_user_identity(
             test_db_session, redis_client, system_admin.id, user.id, payload
         )
 

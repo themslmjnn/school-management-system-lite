@@ -3,14 +3,16 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from school_management_system_lite.core.redis.cache_keys import UsersCacheKeys
-from school_management_system_lite.users.models.user import User
-from school_management_system_lite.users.services.system_admin import UserServiceAdmin
+from school_management_system_lite.users.models import User
+from school_management_system_lite.users.services import (
+    system_admin as user_service_admin,
+)
+from school_management_system_lite.users.utils.enums import UserStatus
 from school_management_system_lite.users.utils.exceptions import (
     UserAlreadyActiveError,
     UserNotFoundError,
-    UserStatusPendingActivationError,
+    UserPendingActivationError,
 )
-from school_management_system_lite.utils.enums import UserStatus
 from tests.factories import make_system_admin, make_teacher
 
 
@@ -25,7 +27,7 @@ class TestSuccess:
     ) -> None:
         user = await make_teacher(test_db_session, status=UserStatus.INACTIVE)
 
-        await UserServiceAdmin.activate_user_account(
+        await user_service_admin.activate_user_account(
             test_db_session, redis_client, system_admin.id, user.id
         )
 
@@ -39,7 +41,7 @@ class TestEligibleUsers:
         self, test_db_session: AsyncSession, redis_client: Redis, system_admin: User
     ) -> None:
         with pytest.raises(UserNotFoundError):
-            await UserServiceAdmin.activate_user_account(
+            await user_service_admin.activate_user_account(
                 test_db_session,
                 redis_client,
                 actor_id=system_admin.id,
@@ -52,7 +54,7 @@ class TestEligibleUsers:
         user = await make_system_admin(test_db_session)
 
         with pytest.raises(UserNotFoundError):
-            await UserServiceAdmin.activate_user_account(
+            await user_service_admin.activate_user_account(
                 test_db_session,
                 redis_client,
                 system_admin.id,
@@ -63,7 +65,7 @@ class TestEligibleUsers:
         self, test_db_session: AsyncSession, redis_client: Redis, system_admin: User
     ) -> None:
         with pytest.raises(UserNotFoundError):
-            await UserServiceAdmin.activate_user_account(
+            await user_service_admin.activate_user_account(
                 test_db_session,
                 redis_client,
                 system_admin.id,
@@ -78,7 +80,7 @@ class TestEligibleStatuses:
         user = await make_teacher(test_db_session, status=UserStatus.ACTIVE)
 
         with pytest.raises(UserAlreadyActiveError):
-            await UserServiceAdmin.activate_user_account(
+            await user_service_admin.activate_user_account(
                 test_db_session,
                 redis_client,
                 system_admin.id,
@@ -90,8 +92,8 @@ class TestEligibleStatuses:
     ) -> None:
         user = await make_teacher(test_db_session, status=UserStatus.PENDING_ACTIVATION)
 
-        with pytest.raises(UserStatusPendingActivationError):
-            await UserServiceAdmin.activate_user_account(
+        with pytest.raises(UserPendingActivationError):
+            await user_service_admin.activate_user_account(
                 test_db_session,
                 redis_client,
                 system_admin.id,
@@ -110,7 +112,7 @@ class TestEmailSending:
     ) -> None:
         user = await make_teacher(test_db_session, status=UserStatus.INACTIVE)
 
-        await UserServiceAdmin.activate_user_account(
+        await user_service_admin.activate_user_account(
             test_db_session,
             redis_client,
             system_admin.id,
@@ -133,7 +135,7 @@ class TestCacheHandling:
     ) -> None:
         user = await make_teacher(test_db_session, status=UserStatus.INACTIVE)
 
-        await UserServiceAdmin.activate_user_account(
+        await user_service_admin.activate_user_account(
             test_db_session,
             redis_client,
             system_admin.id,

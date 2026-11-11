@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from school_management_system_lite.users.schemas.system_admin import CreateUserAdmin
-from school_management_system_lite.utils.enums import UserRole
+from school_management_system_lite.users.utils.enums import UserRole
 
 
 @pytest.fixture

@@ -2,22 +2,25 @@ import pytest
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from school_management_system_lite.auth.repositories.session import (
-    UserSessionRepository,
+from school_management_system_lite.auth.repositories import (
+    session as auth_session_repository,
 )
+from school_management_system_lite.core.enums import OrderBy
 from school_management_system_lite.core.redis.cache_keys import UsersCacheKeys
 from school_management_system_lite.emails.enums import EmailStatus, EmailType
 from school_management_system_lite.emails.repository import EmailRepository
-from school_management_system_lite.users.models.user import User
+from school_management_system_lite.users.models import User
 from school_management_system_lite.users.schemas.system_admin import (
     UpdateUserEmailAdmin,
 )
-from school_management_system_lite.users.services.system_admin import UserServiceAdmin
+from school_management_system_lite.users.services import (
+    system_admin as user_service_admin,
+)
+from school_management_system_lite.users.utils.enums import UserRole
 from school_management_system_lite.users.utils.exceptions import (
     EmailAlreadyTakenError,
     UserNotFoundError,
 )
-from school_management_system_lite.utils.enums import OrderBy, UserRole
 from tests.factories import (
     make_director,
     make_student,
@@ -37,7 +40,7 @@ class TestSuccess:
     ) -> None:
         user = await make_teacher(test_db_session)
 
-        await UserServiceAdmin.update_user_email(
+        await user_service_admin.update_user_email(
             test_db_session,
             redis_client,
             system_admin.id,
@@ -60,7 +63,7 @@ class TestSuccess:
 
         email_before = user.email
 
-        await UserServiceAdmin.update_user_email(
+        await user_service_admin.update_user_email(
             test_db_session,
             redis_client,
             system_admin.id,
@@ -83,7 +86,7 @@ class TestSuccess:
 
         email_before = user.email
 
-        await UserServiceAdmin.update_user_email(
+        await user_service_admin.update_user_email(
             test_db_session,
             redis_client,
             system_admin.id,
@@ -101,7 +104,7 @@ class TestEligibleUsers:
         self, test_db_session: AsyncSession, redis_client: Redis, system_admin: User
     ) -> None:
         with pytest.raises(UserNotFoundError):
-            await UserServiceAdmin.update_user_email(
+            await user_service_admin.update_user_email(
                 test_db_session,
                 redis_client,
                 actor_id=system_admin.id,
@@ -115,7 +118,7 @@ class TestEligibleUsers:
         user = await make_system_admin(test_db_session)
 
         with pytest.raises(UserNotFoundError):
-            await UserServiceAdmin.update_user_email(
+            await user_service_admin.update_user_email(
                 test_db_session,
                 redis_client,
                 system_admin.id,
@@ -127,7 +130,7 @@ class TestEligibleUsers:
         self, test_db_session: AsyncSession, redis_client: Redis, system_admin: User
     ) -> None:
         with pytest.raises(UserNotFoundError):
-            await UserServiceAdmin.update_user_email(
+            await user_service_admin.update_user_email(
                 test_db_session,
                 redis_client,
                 system_admin.id,
@@ -146,7 +149,7 @@ class TestEmailRow:
     ) -> None:
         user = await make_teacher(test_db_session)
 
-        await UserServiceAdmin.update_user_email(
+        await user_service_admin.update_user_email(
             test_db_session,
             redis_client,
             system_admin.id,
@@ -198,7 +201,7 @@ class TestDBConstraints:
         await make_student(test_db_session, email="student_email@gmail.com")
 
         with pytest.raises(EmailAlreadyTakenError):
-            await UserServiceAdmin.update_user_email(
+            await user_service_admin.update_user_email(
                 test_db_session,
                 redis_client,
                 system_admin.id,
@@ -217,7 +220,7 @@ class TestCacheHandling:
     ) -> None:
         user = await make_teacher(test_db_session)
 
-        await UserServiceAdmin.update_user_email(
+        await user_service_admin.update_user_email(
             test_db_session,
             redis_client,
             system_admin.id,
@@ -243,12 +246,12 @@ class TestSessionInvalidating:
     ) -> None:
         user = await make_teacher(test_db_session)
 
-        user_session_before = await UserSessionRepository.get_by_user_id(
+        user_session_before = await auth_session_repository.get_by_user_id(
             test_db_session, user.id
         )
         access_token_version_before = user_session_before.access_token_version
 
-        await UserServiceAdmin.update_user_email(
+        await user_service_admin.update_user_email(
             test_db_session,
             redis_client,
             system_admin.id,
@@ -256,7 +259,7 @@ class TestSessionInvalidating:
             UpdateUserEmailAdmin(email="updated_email@gmail.com"),
         )
 
-        user_session_after = await UserSessionRepository.get_by_user_id(
+        user_session_after = await auth_session_repository.get_by_user_id(
             test_db_session, user.id
         )
 

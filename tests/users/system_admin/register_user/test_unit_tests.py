@@ -3,23 +3,26 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from school_management_system_lite.auth.repositories.activation import (
-    UserActivationRepository,
+from school_management_system_lite.auth.repositories import (
+    activation as auth_activation_repository,
 )
-from school_management_system_lite.auth.repositories.session import (
-    UserSessionRepository,
+from school_management_system_lite.auth.repositories import (
+    session as auth_session_repository,
 )
 from school_management_system_lite.core.config import get_settings
+from school_management_system_lite.core.enums import OrderBy
 from school_management_system_lite.emails.enums import EmailStatus, EmailType
 from school_management_system_lite.emails.repository import EmailRepository
-from school_management_system_lite.users.models.user import User
+from school_management_system_lite.users.models import User
 from school_management_system_lite.users.schemas.system_admin import CreateUserAdmin
-from school_management_system_lite.users.services.system_admin import UserServiceAdmin
+from school_management_system_lite.users.services import (
+    system_admin as user_service_admin,
+)
+from school_management_system_lite.users.utils.enums import UserRole, UserStatus
 from school_management_system_lite.users.utils.exceptions import (
     EmailAlreadyTakenError,
     PhoneNumberAlreadyTakenError,
 )
-from school_management_system_lite.utils.enums import OrderBy, UserRole, UserStatus
 from tests.factories import make_director, make_student, make_teacher
 
 
@@ -35,7 +38,7 @@ class TestSuccess:
         valid_user_payload.email = "valid_staff_email@gmail.com"
         valid_user_payload.role = UserRole.TEACHER
 
-        registered_user = await UserServiceAdmin.register_user(
+        registered_user = await user_service_admin.register_user(
             test_db_session, system_admin.id, valid_user_payload
         )
 
@@ -60,7 +63,7 @@ class TestSuccess:
         system_admin: User,
         valid_user_payload: CreateUserAdmin,
     ) -> None:
-        registered_user = await UserServiceAdmin.register_user(
+        registered_user = await user_service_admin.register_user(
             test_db_session, system_admin.id, valid_user_payload
         )
 
@@ -87,11 +90,11 @@ class TestUserSessionRow:
         system_admin: User,
         valid_user_payload: CreateUserAdmin,
     ) -> None:
-        registered_user = await UserServiceAdmin.register_user(
+        registered_user = await user_service_admin.register_user(
             test_db_session, system_admin.id, valid_user_payload
         )
 
-        session_row = await UserSessionRepository.get_by_user_id(
+        session_row = await auth_session_repository.get_by_user_id(
             test_db_session, registered_user.id
         )
 
@@ -109,11 +112,11 @@ class TestUserActivationRow:
         system_admin: User,
         valid_user_payload: CreateUserAdmin,
     ) -> None:
-        registered_user = await UserServiceAdmin.register_user(
+        registered_user = await user_service_admin.register_user(
             test_db_session, system_admin.id, valid_user_payload
         )
 
-        activation_row = await UserActivationRepository.get_by_user_id(
+        activation_row = await auth_activation_repository.get_by_user_id(
             test_db_session, registered_user.id
         )
 
@@ -135,7 +138,7 @@ class TestEmailRow:
         system_admin: User,
         valid_user_payload: CreateUserAdmin,
     ) -> None:
-        registered_user = await UserServiceAdmin.register_user(
+        registered_user = await user_service_admin.register_user(
             test_db_session, system_admin.id, valid_user_payload
         )
 
@@ -184,7 +187,7 @@ class TestDBConstraints:
         valid_user_payload.role = role
 
         with pytest.raises(PhoneNumberAlreadyTakenError):
-            await UserServiceAdmin.register_user(
+            await user_service_admin.register_user(
                 test_db_session, system_admin.id, valid_user_payload
             )
 
@@ -215,6 +218,6 @@ class TestDBConstraints:
         valid_user_payload.email = email
 
         with pytest.raises(EmailAlreadyTakenError):
-            await UserServiceAdmin.register_user(
+            await user_service_admin.register_user(
                 test_db_session, system_admin.id, valid_user_payload
             )

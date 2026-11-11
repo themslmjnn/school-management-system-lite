@@ -189,7 +189,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(lifespan=lifespan)
 
     app.state.settings = settings
-    app.state.redis = None
+    app.state.redis_client = None
 
     # EXCEPTIONS
     register_exception_handlers(app)
