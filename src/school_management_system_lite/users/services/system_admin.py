@@ -29,8 +29,8 @@ from school_management_system_lite.users.repositories.system_admin import (
 )
 from school_management_system_lite.users.schemas.system_admin import (
     CreateUserAdmin,
-    UpdateEmailAdmin,
-    UpdateIdentityAdmin,
+    UpdateUserEmailAdmin,
+    UpdateUserIdentityAdmin,
 )
 from school_management_system_lite.users.utils.constants import SYSTEM_ADMIN_ROLE
 from school_management_system_lite.users.utils.exceptions import (
@@ -128,12 +128,12 @@ class UserServiceAdmin:
         return user
 
     @staticmethod
-    async def update_identity(
+    async def update_user_identity(
         db_session: AsyncSession,
         redis: Redis,
         actor_id: int,
         user_id: int,
-        payload: UpdateIdentityAdmin,
+        payload: UpdateUserIdentityAdmin,
     ) -> None:
         user = await UserRepositoryAdmin.get_by_id(
             db_session, user_id, excluded_roles=SYSTEM_ADMIN_ROLE
@@ -164,7 +164,7 @@ class UserServiceAdmin:
             await db_session.rollback()
 
             logger.warning(
-                "updating_identity_failed",
+                "updating_user_identity_failed",
                 failure_reason="integrity_error",
                 error=str(exc.orig),
                 user_id=user_id,
@@ -184,23 +184,23 @@ class UserServiceAdmin:
 
         send_email_in_background(
             send_admin_identity_override_email(user.email),
-            email_type=EmailType.ADMIN_IDENTITY_OVERRIDE,
+            email_type=EmailType.ADMIN_USER_IDENTITY_OVERRIDE,
         )
 
         logger.info(
-            "identity_updated",
+            "user_identity_updated",
             user_id=user_id,
             actor_id=actor_id,
             method="admin_update",
         )
 
     @staticmethod
-    async def update_email(
+    async def update_user_email(
         db_session: AsyncSession,
         redis: Redis,
         actor_id: int,
         user_id: int,
-        payload: UpdateEmailAdmin,
+        payload: UpdateUserEmailAdmin,
     ) -> None:
         user = await UserRepositoryAdmin.get_by_id(
             db_session, user_id, excluded_roles=SYSTEM_ADMIN_ROLE
@@ -231,7 +231,7 @@ class UserServiceAdmin:
                     recipient_email=user.email,
                     subject=subject,
                     html_body=html_body,
-                    email_type=EmailType.ADMIN_CREDENTIALS_OVERRIDE,
+                    email_type=EmailType.ADMIN_USER_EMAIL_OVERRIDE,
                     triggered_by=actor_id,
                 )
             )
@@ -242,7 +242,7 @@ class UserServiceAdmin:
             await db_session.rollback()
 
             logger.warning(
-                "updating_email_failed",
+                "updating_user_email_failed",
                 failure_reason="integrity_error",
                 error=str(exc.orig),
                 user_id=user_id,
@@ -261,7 +261,7 @@ class UserServiceAdmin:
         )
 
         logger.info(
-            "email_updated",
+            "user_email_updated",
             user_id=user_id,
             actor_id=actor_id,
             method="admin_update",

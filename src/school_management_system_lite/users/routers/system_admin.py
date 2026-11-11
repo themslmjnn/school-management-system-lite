@@ -10,8 +10,8 @@ from school_management_system_lite.core.dependencies import (
 )
 from school_management_system_lite.users.schemas.system_admin import (
     CreateUserAdmin,
-    UpdateEmailAdmin,
-    UpdateIdentityAdmin,
+    UpdateUserEmailAdmin,
+    UpdateUserIdentityAdmin,
     UserResponseBaseAdmin,
     UserResponseDetailedAdmin,
 )
@@ -41,14 +41,14 @@ async def register_user(
     "/admin/users/{user_id}/identity",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-async def update_identity(
+async def update_user_identity(
     db_session: db_session_dependency,
     redis: redis_dependency,
     current_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
-    payload: UpdateIdentityAdmin,
+    payload: UpdateUserIdentityAdmin,
 ):
-    return await UserServiceAdmin.update_identity(
+    return await UserServiceAdmin.update_user_identity(
         db_session, redis, current_user.user_id, user_id, payload
     )
 
@@ -57,14 +57,14 @@ async def update_identity(
     "/admin/users/{user_id}/email",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-async def update_email(
+async def update_user_email(
     db_session: db_session_dependency,
     redis: redis_dependency,
     current_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
-    payload: UpdateEmailAdmin,
+    payload: UpdateUserEmailAdmin,
 ):
-    return await UserServiceAdmin.update_email(
+    return await UserServiceAdmin.update_user_email(
         db_session, redis, current_user.user_id, user_id, payload
     )
 

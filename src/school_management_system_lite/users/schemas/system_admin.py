@@ -97,7 +97,7 @@ class CreateUserAdmin(BaseModel):
         return self
 
 
-class UpdateIdentityAdmin(BaseModel):
+class UpdateUserIdentityAdmin(BaseModel):
     first_name: str | None = Field(min_length=3, max_length=30, default=None)
     last_name: str | None = Field(min_length=3, max_length=30, default=None)
     middle_name: str | None = Field(min_length=3, max_length=30, default=None)
@@ -145,7 +145,7 @@ class UpdateIdentityAdmin(BaseModel):
         return validate_phone_number(phone_number)
 
 
-class UpdateEmailAdmin(BaseModel):
+class UpdateUserEmailAdmin(BaseModel):
     email: str | None = Field(max_length=50, default=None)
 
     @field_validator("email")
