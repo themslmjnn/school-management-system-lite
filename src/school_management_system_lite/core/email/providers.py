@@ -10,20 +10,23 @@ from school_management_system_lite.core.config import get_settings
 
 logger = structlog.get_logger(__name__)
 
-_resend_client = httpx.AsyncClient(
-    base_url="https://api.resend.com",
-    timeout=httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0),
-)
+
+def build_resend_client() -> httpx.AsyncClient:
+    return httpx.AsyncClient(
+        base_url="https://api.resend.com",
+        timeout=httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0),
+    )
 
 
 async def send_via_resend(
+    resend_client: httpx.AsyncClient,
     subject: str,
     to_email: str,
     html_body: str,
 ) -> None:
     settings = get_settings()
 
-    response = await _resend_client.post(
+    response = await resend_client.post(
         "/emails",
         json={
             "from": f"{settings.MAIL_FROM_NAME} <{settings.MAIL_FROM}>",
@@ -79,12 +82,3 @@ async def send_via_mailtrap(
         to_email=to_email,
         subject=subject,
     )
-
-
-async def close_email_client() -> None:
-    """
-    Close the shared httpx client. Called in lifespan shutdown.
-    Prevents ResourceWarning in tests and ensures clean shutdown.
-    """
-
-    await _resend_client.aclose()

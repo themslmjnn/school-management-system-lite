@@ -4,9 +4,9 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from school_management_system_lite.core.enums import OrderBy
 from school_management_system_lite.emails.enums import EmailStatus
 from school_management_system_lite.emails.models import Email
-from school_management_system_lite.utils.enums import OrderBy
 
 RETRY_DELAY = timedelta(minutes=2)
 

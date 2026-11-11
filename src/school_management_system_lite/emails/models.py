@@ -8,7 +8,7 @@ from school_management_system_lite.database.base import Base
 from school_management_system_lite.emails.enums import EmailStatus, EmailType
 
 if TYPE_CHECKING:
-    from school_management_system_lite.users.models.user import User
+    from school_management_system_lite.users.models import User
 
 
 class Email(Base):

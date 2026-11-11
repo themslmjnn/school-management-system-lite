@@ -3,6 +3,7 @@ from collections.abc import Awaitable
 from typing import Any
 
 import structlog
+from httpx import AsyncClient
 
 from school_management_system_lite.core.config import get_settings
 from school_management_system_lite.core.email.providers import (
@@ -18,7 +19,9 @@ settings = get_settings()
 _background_tasks: set[asyncio.Task[None]] = set()
 
 
-async def send_email(subject: str, to_email: str, html_body: str) -> None:
+async def send_email(
+    resend_client: AsyncClient, subject: str, to_email: str, html_body: str
+) -> None:
     """
     Send an email via the appropriate provider for the current environment.
     Raises on delivery failure — caller (worker) handles retry logic.
@@ -28,7 +31,7 @@ async def send_email(subject: str, to_email: str, html_body: str) -> None:
         if settings.MAILTRAP_PASSWORD is not None:
             await send_via_mailtrap(subject, to_email, html_body)
         else:
-            await send_via_resend(subject, to_email, html_body)
+            await send_via_resend(resend_client, subject, to_email, html_body)
 
 
 async def send_email_safe(email_operation: Awaitable[Any], **log_context: Any) -> None:
