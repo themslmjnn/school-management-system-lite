@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import (
 from school_management_system_lite.core.config import Settings
 
 
-def build_engine(settings: Settings) -> AsyncEngine:
+def build_db_engine(settings: Settings) -> AsyncEngine:
     return create_async_engine(
         url=settings.DATABASE_URL,
         pool_pre_ping=True,

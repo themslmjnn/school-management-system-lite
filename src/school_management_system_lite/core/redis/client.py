@@ -6,7 +6,7 @@ SOCKET_CONNECT_TIMEOUT_SECONDS = 2
 SOCKET_TIMEOUT_SECONDS = 2
 
 
-def build_redis(settings: Settings) -> Redis:
+def build_redis_client(settings: Settings) -> Redis:
     return Redis.from_url(
         url=settings.REDIS_URL,
         decode_responses=True,
