@@ -4,18 +4,24 @@ from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
+from httpx import AsyncClient
 from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from school_management_system_lite.auth.router import router as auth_module_routers
 from school_management_system_lite.core.config import Settings, get_settings
+from school_management_system_lite.core.email.providers import build_resend_client
 from school_management_system_lite.core.email_worker import run_email_worker
-from school_management_system_lite.core.exceptions import register_exception_handlers
+from school_management_system_lite.core.exceptions.handlers import (
+    register_exception_handlers,
+)
 from school_management_system_lite.core.logging import configure_logging
-from school_management_system_lite.core.redis.client import build_redis
+from school_management_system_lite.core.redis.client import (
+    build_redis_client,
+)
 from school_management_system_lite.database.connection import (
-    build_engine,
+    build_db_engine,
     build_session_factory,
 )
 from school_management_system_lite.groups.router import router as groups_module_routers
@@ -57,29 +63,35 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
     logger.info("application_starting", environment=settings.ENVIRONMENT)
 
-    engine: AsyncEngine = build_engine(settings)
-    redis: Redis = build_redis(settings)
+    db_engine: AsyncEngine = build_db_engine(settings)
+    redis_client: Redis = build_redis_client(settings)
+
+    if settings.ENVIRONMENT in ("staging", "production"):
+        resend_client: AsyncClient = build_resend_client()
 
     email_worker_task: asyncio.Task[None] | None = None
 
     try:
-        async with engine.connect() as conn:
+        async with db_engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
 
         logger.info("database_connected")
 
         try:
-            await redis.ping()
+            await redis_client.ping()
 
-            app.state.redis = redis
+            app.state.redis_client = redis_client
 
-            logger.info("redis_connected")
+            logger.info("redis_client_connected")
 
         except Exception as exc:
             logger.warning("redis_connection_failed", error=str(exc))
 
-        app.state.engine = engine
-        app.state.session_factory = build_session_factory(engine)
+        app.state.db_engine = db_engine
+        app.state.session_factory = build_session_factory(db_engine)
+
+        if settings.ENVIRONMENT in ("staging", "production"):
+            app.state.resend_client = resend_client
 
         email_worker_task = asyncio.create_task(
             run_email_worker(
@@ -122,9 +134,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
             logger.info("email_worker_stopped")
 
+        try:
+            if settings.ENVIRONMENT in ("staging", "production"):
+                await resend_client.aclose()
+
+        except Exception as exc:
+            is_shutdown_completed = False
+
+            logger.exception(
+                "shutdown_step_failed", step="redis_client", error=str(exc)
+            )
+
         shutdown = (
-            ("redis", redis.aclose, "redis_closed"),
-            ("db_engine", engine.dispose, "db_engine_disposed"),
+            ("redis_client", redis_client.aclose, "redis_client_closed"),
+            ("db_engine", db_engine.dispose, "db_engine_disposed"),
         )
 
         for step, close, log in shutdown:
