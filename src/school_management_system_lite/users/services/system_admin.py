@@ -15,6 +15,7 @@ from school_management_system_lite.core.config import Settings, get_settings
 from school_management_system_lite.core.email.service import send_email_in_background
 from school_management_system_lite.core.email.templates.users import (
     build_account_activation_email,
+    build_admin_account_deactivation_email,
     build_admin_email_override_email,
     send_admin_identity_override_email,
 )
@@ -34,9 +35,9 @@ from school_management_system_lite.users.schemas.system_admin import (
 )
 from school_management_system_lite.users.utils.constants import SYSTEM_ADMIN_ROLE
 from school_management_system_lite.users.utils.exceptions import (
-    UserAlreadyActive,
-    UserAlreadyInactive,
+    UserAlreadyInactiveError,
     UserNotFoundError,
+    UserStatusPendingActivationError,
     handle_email_integrity_error,
     handle_phone_number_integrity_error,
 )
@@ -268,17 +269,69 @@ class UserServiceAdmin:
         )
 
     @staticmethod
-    async def deactivate_user(db_session: AsyncSession, user_id: int) -> None:
-        user = await UserRepositoryAdmin.get_by_id(db_session, user_id)
+    async def deactivate_user_account(
+        db_session: AsyncSession, redis: Redis, actor_id: int, user_id: int
+    ) -> None:
+        user = await UserRepositoryAdmin.get_by_id(
+            db_session, user_id, excluded_roles=SYSTEM_ADMIN_ROLE
+        )
         if user is None:
             raise UserNotFoundError()
 
+        if user.status == UserStatus.PENDING_ACTIVATION:
+            logger.warning(
+                "user_account_deactivation_failed",
+                failure_reason="account_status_is_pending_activation",
+                user_id=user_id,
+                requested_by=actor_id,
+            )
+
+            raise UserStatusPendingActivationError()
+
         if user.status == UserStatus.INACTIVE:
-            raise UserAlreadyInactive()
+            logger.warning(
+                "user_account_deactivation_failed",
+                failure_reason="user_account_is_already_inactive",
+                user_id=user_id,
+                requested_by=actor_id,
+            )
+
+            raise UserAlreadyInactiveError()
 
         user.status = UserStatus.INACTIVE
 
+        user_session = await UserSessionRepository.get_by_user_id(db_session, user.id)
+
+        user_session.access_token_version += 1
+        user_session.refresh_token_hash = None
+        user_session.refresh_token_expires_at = None
+
+        subject, html_body = build_admin_account_deactivation_email()
+
+        db_session.add(
+            Email(
+                recipient_email=user.email,
+                subject=subject,
+                html_body=html_body,
+                email_type=EmailType.ADMIN_ACCOUNT_DEACTIVATION,
+                triggered_by=actor_id,
+            )
+        )
+
         await db_session.commit()
+
+        await delete_cache(
+            redis,
+            UsersCacheKeys.detailed_response_key_admin(user_id),
+            UsersCacheKeys.detailed_response_key_staff(user_id),
+            UsersCacheKeys.detailed_response_key_self(user_id),
+        )
+
+        logger.info(
+            "user_account_deactivated",
+            user_id=user_id,
+            actor_id=actor_id,
+        )
 
     @staticmethod
     async def activate_user(db_session: AsyncSession, user_id: int) -> None:
@@ -287,7 +340,7 @@ class UserServiceAdmin:
             raise UserNotFoundError()
 
         if user.status == UserStatus.ACTIVE:
-            raise UserAlreadyActive()
+            raise UserAlreadyInactiveError()
 
         user.status = UserStatus.ACTIVE
 
