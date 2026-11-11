@@ -86,11 +86,15 @@ async def deactivate_user_account(
 @router.patch(
     "/admin/users/{user_id}/activation", status_code=status.HTTP_204_NO_CONTENT
 )
-async def activate_user(
+async def activate_user_account(
     db_session: db_session_dependency,
+    redis: redis_dependency,
+    current_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
 ):
-    await UserServiceAdmin.activate_user(db_session, user_id)
+    await UserServiceAdmin.activate_user_account(
+        db_session, redis, current_user.user_id, user_id
+    )
 
 
 @router.get(

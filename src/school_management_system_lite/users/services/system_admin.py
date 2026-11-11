@@ -17,6 +17,7 @@ from school_management_system_lite.core.email.templates.users import (
     build_account_activation_email,
     build_admin_account_deactivation_email,
     build_admin_email_override_email,
+    send_admin_account_activation_email,
     send_admin_identity_override_email,
 )
 from school_management_system_lite.core.redis.cache_keys import UsersCacheKeys
@@ -35,6 +36,7 @@ from school_management_system_lite.users.schemas.system_admin import (
 )
 from school_management_system_lite.users.utils.constants import SYSTEM_ADMIN_ROLE
 from school_management_system_lite.users.utils.exceptions import (
+    UserAlreadyActiveError,
     UserAlreadyInactiveError,
     UserNotFoundError,
     UserStatusPendingActivationError,
@@ -324,7 +326,6 @@ class UserServiceAdmin:
             redis,
             UsersCacheKeys.detailed_response_key_admin(user_id),
             UsersCacheKeys.detailed_response_key_staff(user_id),
-            UsersCacheKeys.detailed_response_key_self(user_id),
         )
 
         logger.info(
@@ -334,17 +335,55 @@ class UserServiceAdmin:
         )
 
     @staticmethod
-    async def activate_user(db_session: AsyncSession, user_id: int) -> None:
-        user = await UserRepositoryAdmin.get_by_id(db_session, user_id)
+    async def activate_user_account(
+        db_session: AsyncSession, redis: Redis, actor_id: int, user_id: int
+    ) -> None:
+        user = await UserRepositoryAdmin.get_by_id(
+            db_session, user_id, excluded_roles=SYSTEM_ADMIN_ROLE
+        )
         if user is None:
             raise UserNotFoundError()
 
         if user.status == UserStatus.ACTIVE:
-            raise UserAlreadyInactiveError()
+            logger.warning(
+                "user_account_activation_failed",
+                failure_reason="user_account_is_already_active",
+                user_id=user_id,
+                requested_by=actor_id,
+            )
+
+            raise UserAlreadyActiveError()
+
+        if user.status == UserStatus.PENDING_ACTIVATION:
+            logger.warning(
+                "user_account_activation_failed",
+                failure_reason="user_account_is_pending_activation",
+                user_id=user_id,
+                requested_by=actor_id,
+            )
+
+            raise UserStatusPendingActivationError()
 
         user.status = UserStatus.ACTIVE
 
         await db_session.commit()
+
+        await delete_cache(
+            redis,
+            UsersCacheKeys.detailed_response_key_admin(user_id),
+            UsersCacheKeys.detailed_response_key_staff(user_id),
+        )
+
+        send_email_in_background(
+            send_admin_account_activation_email(to_email=user.email),
+            email_type=EmailType.ADMIN_ACCOUNT_ACTIVATION,
+        )
+
+        logger.info(
+            "user_account_activated",
+            user_id=user_id,
+            actor_id=actor_id,
+        )
 
     @staticmethod
     async def get_users(db_session: AsyncSession) -> Sequence[User]:
