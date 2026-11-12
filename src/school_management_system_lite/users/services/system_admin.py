@@ -55,6 +55,7 @@ from school_management_system_lite.users.schemas import (
 from school_management_system_lite.users.utils import exceptions as user_exceptions
 from school_management_system_lite.users.utils.constants import SYSTEM_ADMIN_ROLE
 from school_management_system_lite.users.utils.enums import UserStatus
+from school_management_system_lite.users.utils.helpers import ensure_utc
 
 logger = structlog.get_logger(__name__)
 
@@ -441,7 +442,8 @@ async def request_password_reset(
         password_reset is not None
         and password_reset.password_reset_token_hash is not None
         and password_reset.password_reset_token_expires_at is not None
-        and password_reset.password_reset_token_expires_at > datetime.now(UTC)
+        and ensure_utc(password_reset.password_reset_token_expires_at)
+        > datetime.now(UTC)
     )
 
     has_pending_password_reset_email = len(email) != 0
@@ -455,6 +457,10 @@ async def request_password_reset(
         )
 
         raise user_exceptions.PasswordResetAlreadyRequestedError()
+
+    if password_reset is not None:
+        await db_session.delete(password_reset)
+        await db_session.flush()
 
     raw_password_reset_token, password_reset_token_hash = generate_token()
 
@@ -471,6 +477,7 @@ async def request_password_reset(
             password_reset_token_expires_at=password_reset_token_expires_at,
         )
     )
+
     db_session.add(
         Email(
             recipient_email=user.email,

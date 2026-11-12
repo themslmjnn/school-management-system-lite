@@ -87,7 +87,7 @@ class TestEligibleStatuses:
                 user.id,
             )
 
-    async def test_raise_error_on_pending_activation_accounts_accounts(
+    async def test_raise_error_on_pending_activation_accounts(
         self, test_db_session: AsyncSession, redis_client: Redis, system_admin: User
     ) -> None:
         user = await make_teacher(test_db_session, status=UserStatus.PENDING_ACTIVATION)
