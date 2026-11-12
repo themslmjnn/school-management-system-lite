@@ -1,19 +1,24 @@
-from collections.abc import Sequence
 from typing import Annotated
 
-from fastapi import APIRouter, Path, status
+from fastapi import APIRouter, Depends, Path, status
 
 from school_management_system_lite.core.dependencies.auth import require_system_admin
 from school_management_system_lite.core.dependencies.database import (
     db_session_dependency,
 )
 from school_management_system_lite.core.dependencies.redis import redis_dependency
+from school_management_system_lite.core.enums import OrderBy
+from school_management_system_lite.core.pagination import (
+    PaginatedResponse,
+    pagination_dependency,
+)
 from school_management_system_lite.users.schemas import (
     system_admin as user_schemas_admin,
 )
 from school_management_system_lite.users.services import (
     system_admin as user_service_admin,
 )
+from school_management_system_lite.users.utils.enums import UserSortField
 
 router = APIRouter(
     tags=["Users - System Admin"],
@@ -122,12 +127,21 @@ async def resend_activation_token(
 
 
 @router.get(
-    "/admin/users",
-    response_model=Sequence[user_schemas_admin.UserResponseBaseAdmin],
+    "/admin/users/staff",
+    response_model=PaginatedResponse[user_schemas_admin.UserResponseBaseAdmin],
     status_code=status.HTTP_200_OK,
 )
-async def get_users(db_session: db_session_dependency):
-    return await user_service_admin.get_users(db_session)
+async def get_staff(
+    db_session: db_session_dependency,
+    _authenticated_user: require_system_admin,
+    pagination: pagination_dependency,
+    filters: Annotated[user_schemas_admin.UserFiltersAdmin, Depends()],
+    sort_by: UserSortField = UserSortField.CREATED_AT,
+    order: OrderBy = OrderBy.DESC,
+):
+    return await user_service_admin.get_staff(
+        db_session, pagination.skip, pagination.limit, filters, sort_by, order
+    )
 
 
 @router.get(

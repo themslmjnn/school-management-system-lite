@@ -146,3 +146,16 @@ class UpdateUserEmailAdmin(BaseModel):
             return None
 
         return validators.validate_email(email)
+
+
+class UserFiltersAdmin(BaseModel):
+    first_name: str | None = Field(min_length=3, max_length=10, default=None)
+    last_name: str | None = Field(min_length=3, max_length=10, default=None)
+    email: str | None = Field(min_length=3, max_length=15, default=None)
+    phone_number: str | None = Field(min_length=3, max_length=10, default=None)
+
+
+class UserBaseFilters(BaseModel):
+    first_name: str | None = Field(min_length=3, max_length=10, default=None)
+    last_name: str | None = Field(min_length=3, max_length=10, default=None)
+    phone_number: str | None = Field(min_length=3, max_length=10, default=None)

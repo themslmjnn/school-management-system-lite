@@ -15,3 +15,10 @@ class UserStatus(StrEnum):
     EXPELLED = "expelled"
     WITHDRAWN = "withdrawn"
     GRADUATED = "graduated"
+
+
+class UserSortField(StrEnum):
+    CREATED_AT = "created_at"
+    FIRST_NAME = "first_name"
+    LAST_NAME = "last_name"
+    STATUS = "status"

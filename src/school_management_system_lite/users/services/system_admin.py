@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import structlog
@@ -40,6 +39,7 @@ from school_management_system_lite.core.email.templates.admin_user_identity_over
     send_admin_identity_override_email,
 )
 from school_management_system_lite.core.enums import OrderBy
+from school_management_system_lite.core.pagination import PaginatedResponse
 from school_management_system_lite.core.redis.cache_keys import UsersCacheKeys
 from school_management_system_lite.core.redis.wrappers import delete_cache
 from school_management_system_lite.core.security import generate_token
@@ -56,8 +56,11 @@ from school_management_system_lite.users.schemas import (
     system_admin as user_schemas_admin,
 )
 from school_management_system_lite.users.utils import exceptions as user_exceptions
-from school_management_system_lite.users.utils.constants import SYSTEM_ADMIN_ROLE
-from school_management_system_lite.users.utils.enums import UserStatus
+from school_management_system_lite.users.utils.constants import (
+    STAFF_ROLES,
+    SYSTEM_ADMIN_ROLE,
+)
+from school_management_system_lite.users.utils.enums import UserSortField, UserStatus
 from school_management_system_lite.users.utils.helpers import ensure_utc
 
 logger = structlog.get_logger(__name__)
@@ -565,8 +568,32 @@ async def resend_activation_token(
     )
 
 
-async def get_users(db_session: AsyncSession) -> Sequence[User]:
-    return await user_repository_admin.get_users(db_session)
+async def get_staff(
+    db_session: AsyncSession,
+    skip: int,
+    limit: int,
+    filters: user_schemas_admin.UserFiltersAdmin,
+    sort_by: UserSortField,
+    order: OrderBy,
+) -> PaginatedResponse:
+    staff, total = await user_repository_admin.get_users_admin(
+        db_session,
+        excluded_roles=SYSTEM_ADMIN_ROLE,
+        allowed_roles=STAFF_ROLES,
+        skip=skip,
+        limit=limit,
+        filters=filters,
+        sort_by=sort_by,
+        order=order,
+    )
+
+    return PaginatedResponse(
+        items=staff,
+        total=total,
+        skip=skip,
+        limit=limit,
+        has_more=skip + limit < total,
+    )
 
 
 async def get_user(db_session: AsyncSession, user_id: int) -> User:
