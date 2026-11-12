@@ -29,8 +29,6 @@ async def get_by_recipient_email(
     if order_by == OrderBy.DESC:
         stmt = stmt.order_by(Email.created_at.desc())
 
-    stmt = stmt.order_by(Email.created_at.asc())
-
     result = await db_session.execute(stmt)
 
     return result.scalars().all()

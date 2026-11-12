@@ -96,7 +96,7 @@ async def activate_user_account(
 
 
 @router.patch(
-    "/admin/users/{users_id}/password-reset", status_code=status.HTTP_202_ACCEPTED
+    "/admin/users/{user_id}/password-reset", status_code=status.HTTP_202_ACCEPTED
 )
 async def request_password_reset(
     db_session: db_session_dependency,

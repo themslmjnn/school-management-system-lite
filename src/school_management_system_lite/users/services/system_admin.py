@@ -420,30 +420,38 @@ async def request_password_reset(
         )
 
     password_reset = await auth_password_reset_repository.get_by_user_id(
-        db_session, user_id
+        db_session,
+        user_id,
     )
+
     email = await email_repository.get_by_recipient_email(
         db_session,
         user.email,
         email_type=frozenset(
-            {EmailType.ADMIN_PASSWORD_RESET, EmailType.FORGOT_PASSWORD_REQUEST}
+            {
+                EmailType.ADMIN_PASSWORD_RESET,
+                EmailType.FORGOT_PASSWORD_REQUEST,
+            }
         ),
         status=EmailStatus.PENDING,
         order_by=OrderBy.DESC,
     )
 
-    condition = password_reset is not None or (
-        password_reset.password_reset_token_hash is None
-        and password_reset.password_reset_token_expires_at
-        - timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRES_MINUTES)
-        <= datetime.now(UTC)
+    has_pending_password_reset_token = (
+        password_reset is not None
+        and password_reset.password_reset_token_hash is not None
+        and password_reset.password_reset_token_expires_at is not None
+        and password_reset.password_reset_token_expires_at > datetime.now(UTC)
     )
 
-    if condition and email is not None:
+    has_pending_password_reset_email = len(email) != 0
+
+    if has_pending_password_reset_token or has_pending_password_reset_email:
         logger.warning(
             "password_reset_request_denied",
             denial_reason="user_already_has_pending_requests",
             user_id=user_id,
+            requested_by=actor_id,
         )
 
         raise user_exceptions.PasswordResetAlreadyRequestedError()

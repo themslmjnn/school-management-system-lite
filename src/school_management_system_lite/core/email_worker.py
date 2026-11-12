@@ -6,9 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from school_management_system_lite.core.config import Settings
 from school_management_system_lite.core.email.service import send_email
+from school_management_system_lite.emails import repository as email_repository
 from school_management_system_lite.emails.enums import EmailStatus
 from school_management_system_lite.emails.models import Email
-from school_management_system_lite.emails.repository import EmailRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -43,7 +43,7 @@ async def _process_email(
             raise
 
         except Exception as exc:
-            EmailRepository.mark_failed_attempt(record, str(exc))
+            email_repository.mark_failed_attempt(record, str(exc))
 
             await db_session.commit()
 
@@ -64,7 +64,7 @@ async def _process_email(
 
             return
 
-        EmailRepository.mark_sent(record)
+        email_repository.mark_sent(record)
 
         await db_session.commit()
 
@@ -85,7 +85,7 @@ async def _run_sweep(
 
     while True:
         async with session_factory() as session:
-            batch = await EmailRepository.get_pending_batch(session, limit=batch_size)
+            batch = await email_repository.get_pending_batch(session, limit=batch_size)
 
             if not batch:
                 break
@@ -93,7 +93,7 @@ async def _run_sweep(
             logger.info("email_worker_sweep_batch", batch_size=len(batch))
 
             for record in batch:
-                await _process_email(session, record, resend_client)
+                await _process_email(session, resend_client, record)
 
             if len(batch) < batch_size:
                 break
