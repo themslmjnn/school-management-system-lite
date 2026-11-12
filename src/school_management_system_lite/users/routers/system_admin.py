@@ -145,9 +145,14 @@ async def get_staff(
 
 
 @router.get(
-    "/admin/users/{user_id}",
+    "/admin/users/staff/{user_id}",
     response_model=user_schemas_admin.UserResponseDetailedAdmin,
     status_code=status.HTTP_200_OK,
 )
-async def get_user(db_session: db_session_dependency, user_id: int):
-    return await user_service_admin.get_user(db_session, user_id)
+async def get_single_staff(
+    db_session: db_session_dependency,
+    redis_client: redis_dependency,
+    _authenticated_user: require_system_admin,
+    user_id: int,
+):
+    return await user_service_admin.get_single_staff(db_session, redis_client, user_id)

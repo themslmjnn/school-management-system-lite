@@ -41,7 +41,11 @@ from school_management_system_lite.core.email.templates.admin_user_identity_over
 from school_management_system_lite.core.enums import OrderBy
 from school_management_system_lite.core.pagination import PaginatedResponse
 from school_management_system_lite.core.redis.cache_keys import UsersCacheKeys
-from school_management_system_lite.core.redis.wrappers import delete_cache
+from school_management_system_lite.core.redis.wrappers import (
+    delete_cache,
+    get_cache,
+    set_cache,
+)
 from school_management_system_lite.core.security import generate_token
 from school_management_system_lite.emails.enums import EmailStatus, EmailType
 from school_management_system_lite.emails.models import Email
@@ -596,9 +600,22 @@ async def get_staff(
     )
 
 
-async def get_user(db_session: AsyncSession, user_id: int) -> User:
-    user = await user_base_repository.get_by_id(db_session, user_id)
-    if user is None:
+async def get_single_staff(
+    db_session: AsyncSession, redis_client: Redis, user_id: int
+) -> user_schemas_admin.UserResponseDetailedAdmin:
+    cache_key = UsersCacheKeys.detailed_response_key_admin(user_id)
+    cached_value = await get_cache(redis_client, cache_key)
+    if cached_value is not None:
+        return user_schemas_admin.UserResponseDetailedAdmin.model_validate(cached_value)
+
+    staff = await user_base_repository.get_by_id(
+        db_session, user_id, allowed_roles=STAFF_ROLES
+    )
+    if staff is None:
         raise user_exceptions.UserNotFoundError()
 
-    return user
+    response = user_schemas_admin.UserResponseDetailedAdmin.model_validate(staff)
+
+    await set_cache(redis_client, cache_key, response.model_dump(mode="json"), 900)
+
+    return response
