@@ -27,11 +27,11 @@ router = APIRouter(
 )
 async def register_user(
     db_session: db_session_dependency,
-    current_user: require_system_admin,
+    authenticated_user: require_system_admin,
     payload: user_schemas_admin.CreateUserAdmin,
 ):
     return await user_service_admin.register_user(
-        db_session, current_user.user_id, payload
+        db_session, authenticated_user.user_id, payload
     )
 
 
@@ -42,12 +42,12 @@ async def register_user(
 async def update_user_identity(
     db_session: db_session_dependency,
     redis: redis_dependency,
-    current_user: require_system_admin,
+    authenticated_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
     payload: user_schemas_admin.UpdateUserIdentityAdmin,
 ):
     return await user_service_admin.update_user_identity(
-        db_session, redis, current_user.user_id, user_id, payload
+        db_session, redis, authenticated_user.user_id, user_id, payload
     )
 
 
@@ -58,12 +58,12 @@ async def update_user_identity(
 async def update_user_email(
     db_session: db_session_dependency,
     redis: redis_dependency,
-    current_user: require_system_admin,
+    authenticated_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
     payload: user_schemas_admin.UpdateUserEmailAdmin,
 ):
     return await user_service_admin.update_user_email(
-        db_session, redis, current_user.user_id, user_id, payload
+        db_session, redis, authenticated_user.user_id, user_id, payload
     )
 
 
@@ -73,11 +73,11 @@ async def update_user_email(
 async def deactivate_user_account(
     db_session: db_session_dependency,
     redis: redis_dependency,
-    current_user: require_system_admin,
+    authenticated_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
 ):
     await user_service_admin.deactivate_user_account(
-        db_session, redis, current_user.user_id, user_id
+        db_session, redis, authenticated_user.user_id, user_id
     )
 
 
@@ -87,11 +87,11 @@ async def deactivate_user_account(
 async def activate_user_account(
     db_session: db_session_dependency,
     redis: redis_dependency,
-    current_user: require_system_admin,
+    authenticated_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
 ):
     await user_service_admin.activate_user_account(
-        db_session, redis, current_user.user_id, user_id
+        db_session, redis, authenticated_user.user_id, user_id
     )
 
 
@@ -100,11 +100,24 @@ async def activate_user_account(
 )
 async def request_password_reset(
     db_session: db_session_dependency,
-    current_user: require_system_admin,
+    authenticated_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
 ):
     await user_service_admin.request_password_reset(
-        db_session, current_user.user_id, user_id
+        db_session, authenticated_user.user_id, user_id
+    )
+
+
+@router.patch(
+    "/admin/users/{user_id}/resend-activation", status_code=status.HTTP_202_ACCEPTED
+)
+async def resend_activation_token(
+    db_session: db_session_dependency,
+    authenticated_user: require_system_admin,
+    user_id: Annotated[int, Path(ge=1)],
+):
+    await user_service_admin.resend_activation_token(
+        db_session, authenticated_user.user_id, user_id
     )
 
 

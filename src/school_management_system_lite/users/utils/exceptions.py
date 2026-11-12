@@ -48,6 +48,12 @@ class PasswordResetAlreadyRequestedError(AppException):
     error_code = "PASSWORD_RESET_ALREADY_REQUESTED"
 
 
+class ResendActivationTokenDenied(AppException):
+    status_code = status.HTTP_409_CONFLICT
+    detail = "Can not resend activation token to non pending activation users"
+    error_code = "RESEND_ACTIVATION_TOKEN_DENIED"
+
+
 # EXCEPTION HANDLERS
 def handle_phone_number_integrity_error(exc: IntegrityError) -> None:
     if "uq_users_phone_number" in str(exc.orig) or "users.phone_number" in str(

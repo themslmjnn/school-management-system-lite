@@ -11,6 +11,9 @@ from school_management_system_lite.auth.models.activation import UserActivation
 from school_management_system_lite.auth.models.password_reset import UserPasswordReset
 from school_management_system_lite.auth.models.session import UserSession
 from school_management_system_lite.auth.repositories import (
+    activation as auth_activation_repository,
+)
+from school_management_system_lite.auth.repositories import (
     password_reset as auth_password_reset_repository,
 )
 from school_management_system_lite.auth.repositories import (
@@ -492,6 +495,71 @@ async def request_password_reset(
 
     logger.info(
         "password_reset_requested",
+        user_id=user_id,
+        actor_id=actor_id,
+    )
+
+
+async def resend_activation_token(
+    db_session: AsyncSession,
+    actor_id: int,
+    user_id: int,
+) -> None:
+    settings = get_settings()
+
+    user = await user_base_repository.get_by_id(
+        db_session, user_id, excluded_roles=SYSTEM_ADMIN_ROLE
+    )
+    if user is None:
+        raise user_exceptions.UserNotFoundError()
+
+    if user.status != UserStatus.PENDING_ACTIVATION:
+        logger.warning(
+            "resend_activation_token_denied",
+            denial_reason="cannot_resend_activation_token_to_non_pending_activation_user",
+            user_id=user.id,
+            requested_by=actor_id,
+        )
+
+        raise user_exceptions.ResendActivationTokenDenied()
+
+    raw_activation_token, activation_token_hash = generate_token()
+
+    activation_token_expires_at = datetime.now(UTC) + timedelta(
+        hours=settings.ACTIVATION_TOKEN_EXPIRES_HOURS
+    )
+
+    activation = await auth_activation_repository.get_by_user_id(db_session, user_id)
+    if activation is None:
+        db_session.add(
+            UserActivation(
+                user_id=user.id,
+                activation_token_hash=activation_token_hash,
+                activation_token_expires_at=activation_token_expires_at,
+            )
+        )
+    else:
+        activation.activation_token_hash = activation_token_hash
+        activation.activation_token_expires_at = activation_token_expires_at
+
+    subject, html_body = build_account_activation_email(
+        user.email, raw_activation_token
+    )
+
+    db_session.add(
+        Email(
+            recipient_email=user.email,
+            subject=subject,
+            html_body=html_body,
+            email_type=EmailType.ACCOUNT_ACTIVATION,
+            triggered_by=actor_id,
+        )
+    )
+
+    await db_session.commit()
+
+    logger.info(
+        "activation_token_resent_successfully",
         user_id=user_id,
         actor_id=actor_id,
     )
