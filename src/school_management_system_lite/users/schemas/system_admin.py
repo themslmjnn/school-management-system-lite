@@ -33,14 +33,14 @@ class UserResponseDetailedAdmin(UserResponseBaseAdmin):
 
 
 class CreateUserAdmin(BaseModel):
-    first_name: str = Field(min_length=3, max_length=30)
-    last_name: str = Field(min_length=3, max_length=30)
-    middle_name: str | None = Field(min_length=3, max_length=30, default=None)
+    first_name: str = Field(max_length=50)
+    last_name: str = Field(max_length=50)
+    middle_name: str | None = Field(max_length=50, default=None)
     role: Literal[UserRole.STUDENT, UserRole.TEACHER, UserRole.DIRECTOR]
+    phone_number: str = Field(max_length=30)
+    email: str = Field(max_length=50)
     date_of_birth: date
     address: str | None = Field(max_length=150, default=None)
-    phone_number: str = Field(max_length=20)
-    email: str = Field(max_length=50)
 
     @field_validator("first_name")
     @classmethod
@@ -59,14 +59,6 @@ class CreateUserAdmin(BaseModel):
             return None
 
         return validators.validate_middle_name(middle_name)
-
-    @field_validator("address")
-    @classmethod
-    def _normalise_address(cls, address: str | None) -> str | None:
-        if address is None:
-            return None
-
-        return address.strip()
 
     @field_validator("phone_number")
     @classmethod
@@ -89,6 +81,14 @@ class CreateUserAdmin(BaseModel):
             return validators.validate_date_of_birth_non_student(value)
 
         return value
+
+    @field_validator("address")
+    @classmethod
+    def _normalise_address(cls, address: str | None) -> str | None:
+        if address is None:
+            return None
+
+        return address.strip()
 
 
 class UpdateUserIdentityAdmin(BaseModel):
