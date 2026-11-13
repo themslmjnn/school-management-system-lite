@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from school_management_system_lite.core.config import get_settings
@@ -17,10 +17,3 @@ def calculate_age(birth_date: date, today: date | None = None) -> int:
         - birth_date.year
         - ((today.month, today.day) < (birth_date.month, birth_date.day))
     )
-
-
-def ensure_utc(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
-
-    return value

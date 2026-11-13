@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import structlog
 from redis.asyncio import Redis
@@ -8,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import school_management_system_lite.emails.repository as email_repository
 from school_management_system_lite.auth.models.activation import UserActivation
 from school_management_system_lite.auth.models.password_reset import UserPasswordReset
-from school_management_system_lite.auth.models.session import UserSession
 from school_management_system_lite.auth.repositories import (
     activation as auth_activation_repository,
 )
@@ -65,7 +65,6 @@ from school_management_system_lite.users.utils.constants import (
     SYSTEM_ADMIN_ROLE,
 )
 from school_management_system_lite.users.utils.enums import UserSortField, UserStatus
-from school_management_system_lite.users.utils.helpers import ensure_utc
 
 logger = structlog.get_logger(__name__)
 
@@ -96,11 +95,10 @@ async def register_user(
 
         raw_activation_token, activation_token_hash = generate_token()
 
-        activation_token_expires_at = datetime.now(UTC) + timedelta(
-            hours=settings.ACTIVATION_TOKEN_EXPIRES_HOURS
-        )
+        activation_token_expires_at = datetime.now(
+            ZoneInfo(get_settings().SCHOOL_TIMEZONE)
+        ) + timedelta(hours=settings.ACTIVATION_TOKEN_EXPIRES_HOURS)
 
-        db_session.add(UserSession(user_id=user.id))
         db_session.add(
             UserActivation(
                 user_id=user.id,
@@ -132,7 +130,7 @@ async def register_user(
         logger.warning(
             "user_registration_failed",
             failure_reason="integrity_error",
-            error=str(exc.orig),
+            constraint=exc.orig.constraint_name,
             requested_by=actor_id,
         )
 
@@ -144,8 +142,6 @@ async def register_user(
     logger.info(
         "user_registered",
         user_id=user.id,
-        email=user.email,
-        role=user.role,
         created_by=actor_id,
     )
 
@@ -452,8 +448,7 @@ async def request_password_reset(
         password_reset is not None
         and password_reset.password_reset_token_hash is not None
         and password_reset.password_reset_token_expires_at is not None
-        and ensure_utc(password_reset.password_reset_token_expires_at)
-        > datetime.now(UTC)
+        and password_reset.password_reset_token_expires_at > datetime.now(UTC)
     )
 
     has_pending_password_reset_email = len(email) != 0
@@ -604,6 +599,7 @@ async def get_single_staff(
     db_session: AsyncSession, redis_client: Redis, user_id: int
 ) -> user_schemas_admin.UserResponseDetailedAdmin:
     cache_key = UsersCacheKeys.detailed_response_key_admin(user_id)
+
     cached_value = await get_cache(redis_client, cache_key)
     if cached_value is not None:
         return user_schemas_admin.UserResponseDetailedAdmin.model_validate(cached_value)
