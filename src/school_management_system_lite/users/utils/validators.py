@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from datetime import UTC, date, datetime
 
 from pydantic_core import PydanticCustomError
@@ -6,21 +7,43 @@ from pydantic_core import PydanticCustomError
 from school_management_system_lite.users.utils import constants as user_constants
 from school_management_system_lite.users.utils.helpers import calculate_age
 
-_NAME_PATTERN = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:['\-][A-Za-zÀ-ÖØ-öø-ÿ]+)*$")
+_LATIN = "A-Za-zÀ-ÖØ-öø-ÿ"
+_CYRILLIC = "А-Яа-яЁё"
+_NAME_PATTERN = re.compile(rf"[{_LATIN}{_CYRILLIC}]+(?:[ '\-][{_LATIN}{_CYRILLIC}]+)*")
+_LATIN_RE = re.compile(rf"[{_LATIN}]")
+_CYRILLIC_RE = re.compile(rf"[{_CYRILLIC}]")
+_SEPARATORS_RE = re.compile(r"[ '\-]")
 
 
 def validate_name(value: str, field: str) -> str:
+    value = unicodedata.normalize("NFC", " ".join(value.split()))
+    label = field.replace("_", " ").capitalize()
+
+    if not (
+        user_constants.NAME_MIN_LENGTH <= len(value) <= user_constants.NAME_MAX_LENGTH
+    ):
+        raise PydanticCustomError(
+            f"invalid_{field}_length",
+            f"{label} must be between {user_constants.NAME_MIN_LENGTH} and "
+            f"{user_constants.NAME_MAX_LENGTH} characters",
+        )
+
     if not _NAME_PATTERN.fullmatch(value):
         raise PydanticCustomError(
             f"invalid_{field}_characters",
-            f"{field.capitalize()} can only contain letters, hyphens, and apostrophes",
+            f"{label} can only contain English, accented Latin, or Russian "
+            "letters, spaces, hyphens, and apostrophes. Hyphens and apostrophes "
+            "must be placed between letters and cannot repeat",
         )
 
-    return re.sub(
-        r"([A-Za-zÀ-ÖØ-öø-ÿ]+)",
-        lambda m: m.group(0).capitalize(),
-        value,
-    )
+    for word in _SEPARATORS_RE.split(value):
+        if _LATIN_RE.search(word) and _CYRILLIC_RE.search(word):
+            raise PydanticCustomError(
+                f"invalid_{field}_mixed_scripts",
+                f"{label} cannot mix Latin and Cyrillic letters within one word",
+            )
+
+    return value
 
 
 def validate_first_name(firstname: str) -> str:
