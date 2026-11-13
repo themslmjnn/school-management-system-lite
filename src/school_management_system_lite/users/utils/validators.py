@@ -61,6 +61,54 @@ def validate_middle_name(middlename: str) -> str:
     return validate_name(middlename, "middle_name")
 
 
+_PHONE_FORMAT_PATTERN = re.compile(r"\+[1-9][0-9]*(?: [0-9]+)*")
+
+
+def validate_phone_number(phone_number: str) -> str:
+    phone_number = phone_number.strip()
+    digits = phone_number[1:].replace(" ", "")
+
+    if not _PHONE_FORMAT_PATTERN.fullmatch(phone_number) or not (
+        user_constants.PHONE_MIN_DIGITS
+        <= len(digits)
+        <= user_constants.PHONE_MAX_DIGITS
+    ):
+        raise PydanticCustomError(
+            "invalid_phone_number",
+            "Phone number must start with '+' followed by "
+            f"{user_constants.PHONE_MIN_DIGITS}-{user_constants.PHONE_MAX_DIGITS} "
+            "digits. Single spaces are allowed between digits",
+        )
+
+    return "+" + digits
+
+
+_DOMAIN_LABEL = r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
+_EMAIL_PATTERN = re.compile(
+    rf"[a-z0-9_]+(?:\.[a-z0-9_]+)*@(?:{_DOMAIN_LABEL}\.)+[a-z]{{2,}}"
+)
+
+
+def validate_email(email: str) -> str:
+    email = email.strip().lower()
+
+    if len(email) > user_constants.EMAIL_MAX_LENGTH:
+        raise PydanticCustomError(
+            "invalid_email",
+            f"Email must be at most {user_constants.EMAIL_MAX_LENGTH} characters",
+        )
+
+    if not _EMAIL_PATTERN.fullmatch(email):
+        raise PydanticCustomError(
+            "invalid_email",
+            "Email must have exactly one '@'. Before it, only English letters, "
+            "digits, '_' and '.' are allowed (no leading, trailing or consecutive "
+            "dots). After it, a domain such as 'school.edu' is required",
+        )
+
+    return email
+
+
 def _validate_date_of_birth(
     birth_date: date,
     *,
@@ -115,52 +163,30 @@ def validate_date_of_birth_non_student(
     )
 
 
-_PHONE_FORMAT_PATTERN = re.compile(r"\+[1-9][0-9]*(?: [0-9]+)*")
+def valdiate_address(address: str) -> str | None:
+    address = " ".join(address.split())
+    if not address:
+        return None
 
-
-def validate_phone_number(phone_number: str) -> str:
-    phone_number = phone_number.strip()
-    digits = phone_number[1:].replace(" ", "")
-
-    if not _PHONE_FORMAT_PATTERN.fullmatch(phone_number) or not (
-        user_constants.PHONE_MIN_DIGITS
-        <= len(digits)
-        <= user_constants.PHONE_MAX_DIGITS
-    ):
+    if len(address) > user_constants.ADDRESS_MIN_LENGTH:
         raise PydanticCustomError(
-            "invalid_phone_number",
-            "Phone number must start with '+' followed by "
-            f"{user_constants.PHONE_MIN_DIGITS}-{user_constants.PHONE_MAX_DIGITS} "
-            "digits. Single spaces are allowed between digits",
+            "invalid_address_length",
+            f"Address must be at least {user_constants.ADDRESS_MIN_LENGTH} characters",
         )
 
-    return "+" + digits
-
-
-_DOMAIN_LABEL = r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
-_EMAIL_PATTERN = re.compile(
-    rf"[a-z0-9_]+(?:\.[a-z0-9_]+)*@(?:{_DOMAIN_LABEL}\.)+[a-z]{{2,}}"
-)
-
-
-def validate_email(email: str) -> str:
-    email = email.strip().lower()
-
-    if len(email) > user_constants.EMAIL_MAX_LENGTH:
+    if len(address) > user_constants.ADDRESS_MAX_LENGTH:
         raise PydanticCustomError(
-            "invalid_email",
-            f"Email must be at most {user_constants.EMAIL_MAX_LENGTH} characters",
+            "invalid_address_length",
+            f"Address must be at most {user_constants.ADDRESS_MAX_LENGTH} characters",
         )
 
-    if not _EMAIL_PATTERN.fullmatch(email):
+    if any(unicodedata.category(char) == "Cc" for char in address):
         raise PydanticCustomError(
-            "invalid_email",
-            "Email must have exactly one '@'. Before it, only English letters, "
-            "digits, '_' and '.' are allowed (no leading, trailing or consecutive "
-            "dots). After it, a domain such as 'school.edu' is required",
+            "invalid_address_characters",
+            "Address must not contain control characters",
         )
 
-    return email
+    return address
 
 
 def validate_password(password: str) -> str:

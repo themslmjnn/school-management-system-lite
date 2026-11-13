@@ -40,7 +40,7 @@ class CreateUserAdmin(BaseModel):
     phone_number: str = Field(max_length=30)
     email: str = Field(max_length=50)
     date_of_birth: date
-    address: str | None = Field(max_length=150, default=None)
+    address: str | None = Field(max_length=200, default=None)
 
     @field_validator("first_name")
     @classmethod
@@ -84,19 +84,19 @@ class CreateUserAdmin(BaseModel):
 
     @field_validator("address")
     @classmethod
-    def _normalise_address(cls, address: str | None) -> str | None:
+    def _validate_address(cls, address: str | None) -> str | None:
         if address is None:
             return None
 
-        return address.strip()
+        return validators.valdiate_address(address)
 
 
 class UpdateUserIdentityAdmin(BaseModel):
-    first_name: str | None = Field(min_length=3, max_length=30, default=None)
-    last_name: str | None = Field(min_length=3, max_length=30, default=None)
-    middle_name: str | None = Field(min_length=3, max_length=30, default=None)
-    address: str | None = Field(max_length=150, default=None)
-    phone_number: str | None = Field(max_length=20, default=None)
+    first_name: str | None = Field(max_length=50, default=None)
+    last_name: str | None = Field(max_length=50, default=None)
+    middle_name: str | None = Field(max_length=50, default=None)
+    phone_number: str | None = Field(max_length=30, default=None)
+    address: str | None = Field(max_length=200, default=None)
 
     @field_validator("first_name")
     @classmethod
@@ -122,14 +122,6 @@ class UpdateUserIdentityAdmin(BaseModel):
 
         return validators.validate_middle_name(middle_name)
 
-    @field_validator("address")
-    @classmethod
-    def _normalise_address(cls, address: str | None) -> str | None:
-        if address is None:
-            return None
-
-        return address.strip()
-
     @field_validator("phone_number")
     @classmethod
     def _validate_phone_number(cls, phone_number: str | None) -> str | None:
@@ -137,6 +129,14 @@ class UpdateUserIdentityAdmin(BaseModel):
             return None
 
         return validators.validate_phone_number(phone_number)
+
+    @field_validator("address")
+    @classmethod
+    def _validate_address(cls, address: str | None) -> str | None:
+        if address is None:
+            return None
+
+        return validators.valdiate_address(address)
 
 
 class UpdateUserEmailAdmin(BaseModel):
@@ -154,11 +154,5 @@ class UpdateUserEmailAdmin(BaseModel):
 class UserFiltersAdmin(BaseModel):
     first_name: str | None = Field(min_length=3, max_length=10, default=None)
     last_name: str | None = Field(min_length=3, max_length=10, default=None)
+    phone_number: str | None = Field(min_length=3, max_length=10, default=None)
     email: str | None = Field(min_length=3, max_length=15, default=None)
-    phone_number: str | None = Field(min_length=3, max_length=10, default=None)
-
-
-class UserBaseFilters(BaseModel):
-    first_name: str | None = Field(min_length=3, max_length=10, default=None)
-    last_name: str | None = Field(min_length=3, max_length=10, default=None)
-    phone_number: str | None = Field(min_length=3, max_length=10, default=None)
