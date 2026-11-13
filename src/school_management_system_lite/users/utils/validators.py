@@ -137,26 +137,27 @@ def validate_phone_number(phone_number: str) -> str:
     return "+" + digits
 
 
+_DOMAIN_LABEL = r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
+_EMAIL_PATTERN = re.compile(
+    rf"[a-z0-9_]+(?:\.[a-z0-9_]+)*@(?:{_DOMAIN_LABEL}\.)+[a-z]{{2,}}"
+)
+
+
 def validate_email(email: str) -> str:
     email = email.strip().lower()
 
-    if "@" not in email:
+    if len(email) > user_constants.EMAIL_MAX_LENGTH:
         raise PydanticCustomError(
             "invalid_email",
-            "Email must contain '@'",
+            f"Email must be at most {user_constants.EMAIL_MAX_LENGTH} characters",
         )
 
-    local_part, domain = email.rsplit("@", 1)
-
-    if (
-        not local_part
-        or "." not in domain
-        or domain.startswith(".")
-        or domain.endswith(".")
-    ):
+    if not _EMAIL_PATTERN.fullmatch(email):
         raise PydanticCustomError(
             "invalid_email",
-            "Email must contain a valid domain",
+            "Email must have exactly one '@'. Before it, only English letters, "
+            "digits, '_' and '.' are allowed (no leading, trailing or consecutive "
+            "dots). After it, a domain such as 'school.edu' is required",
         )
 
     return email
