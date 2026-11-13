@@ -1,11 +1,14 @@
 import re
 import unicodedata
-from datetime import UTC, date, datetime
+from datetime import date
 
 from pydantic_core import PydanticCustomError
 
 from school_management_system_lite.users.utils import constants as user_constants
-from school_management_system_lite.users.utils.helpers import calculate_age
+from school_management_system_lite.users.utils.helpers import (
+    calculate_age,
+    school_today,
+)
 
 _LATIN = "A-Za-zÀ-ÖØ-öø-ÿ"
 _CYRILLIC = "А-Яа-яЁё"
@@ -59,42 +62,56 @@ def validate_middle_name(middlename: str) -> str:
 
 
 def _validate_date_of_birth(
-    birth_date: date, *, min_age: int, max_age: int, subject: str
+    birth_date: date,
+    *,
+    min_age: int,
+    max_age: int,
+    subject: str,
+    today: date | None = None,
 ) -> date:
-    if birth_date >= datetime.now(UTC).date():
+    today = today or school_today()
+
+    if birth_date >= today:
         raise PydanticCustomError(
             "date_of_birth_not_in_past", "Date of birth must be in the past"
         )
 
-    age = calculate_age(birth_date)
+    age = calculate_age(birth_date, today)
+
     if age < min_age:
         raise PydanticCustomError(
-            "date_of_birth_too_young", f"{subject} must be at least {min_age} years old"
+            "date_of_birth_too_young",
+            f"{subject} must be at least {min_age} years old",
         )
 
     if age > max_age:
         raise PydanticCustomError(
-            "date_of_birth_too_old", f"{subject} must be {max_age} years old or younger"
+            "date_of_birth_too_old",
+            f"{subject} must be {max_age} years old or younger",
         )
 
     return birth_date
 
 
-def validate_date_of_birth_student(birth_date: date) -> date:
+def validate_date_of_birth_student(birth_date: date, today: date | None = None) -> date:
     return _validate_date_of_birth(
         birth_date,
         min_age=user_constants.STUDENT_MIN_AGE,
         max_age=user_constants.STUDENT_MAX_AGE,
         subject="Student",
+        today=today,
     )
 
 
-def validate_date_of_birth_non_student(birth_date: date) -> date:
+def validate_date_of_birth_non_student(
+    birth_date: date, today: date | None = None
+) -> date:
     return _validate_date_of_birth(
         birth_date,
         min_age=user_constants.NON_STUDENT_MIN_AGE,
         max_age=user_constants.NON_STUDENT_MAX_AGE,
         subject="User",
+        today=today,
     )
 
 

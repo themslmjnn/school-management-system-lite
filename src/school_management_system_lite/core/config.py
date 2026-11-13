@@ -2,6 +2,7 @@ import os
 from functools import lru_cache
 from typing import Annotated, Literal
 from urllib.parse import quote
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, SecretStr, StringConstraints, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -62,6 +63,8 @@ class Settings(BaseSettings):
 
     COOKIE_SECURE: bool = False
 
+    SCHOOL_TIMEZONE: str = "Asia/Tashkent"
+
     @property
     def DATABASE_URL(self) -> str:
         return (
@@ -81,11 +84,22 @@ class Settings(BaseSettings):
 
     @field_validator("JWT_SECRET_KEY")
     @classmethod
-    def validate_jwt_secret_key(cls, v: SecretStr) -> SecretStr:
-        if len(v.get_secret_value()) < 32:
+    def validate_jwt_secret_key(cls, value: SecretStr) -> SecretStr:
+        if len(value.get_secret_value()) < 32:
             raise ValueError("JWT_SECRET_KEY must be at least 32 characters")
 
-        return v
+        return value
+
+    @field_validator("SCHOOL_TIMEZONE")
+    @classmethod
+    def _validate_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+
+        except ZoneInfoNotFoundError:
+            raise ValueError(f"Unknown timezone: {value}") from None
+
+        return value
 
 
 @lru_cache

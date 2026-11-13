@@ -5,8 +5,8 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    ValidationInfo,
     field_validator,
-    model_validator,
 )
 
 from school_management_system_lite.users.utils import validators
@@ -36,11 +36,11 @@ class CreateUserAdmin(BaseModel):
     first_name: str = Field(min_length=3, max_length=30)
     last_name: str = Field(min_length=3, max_length=30)
     middle_name: str | None = Field(min_length=3, max_length=30, default=None)
+    role: Literal[UserRole.STUDENT, UserRole.TEACHER, UserRole.DIRECTOR]
     date_of_birth: date
     address: str | None = Field(max_length=150, default=None)
     phone_number: str = Field(max_length=20)
     email: str = Field(max_length=50)
-    role: Literal[UserRole.STUDENT, UserRole.TEACHER, UserRole.DIRECTOR]
 
     @field_validator("first_name")
     @classmethod
@@ -78,14 +78,17 @@ class CreateUserAdmin(BaseModel):
     def _validate_email(cls, email: str) -> str:
         return validators.validate_email(email)
 
-    @model_validator(mode="after")
-    def _validate_birth_date(self) -> CreateUserAdmin:
-        if self.role in [UserRole.TEACHER, UserRole.DIRECTOR]:
-            validators.validate_date_of_birth_non_student(self.date_of_birth)
-        elif self.role == UserRole.STUDENT:
-            validators.validate_date_of_birth_student(self.date_of_birth)
+    @field_validator("date_of_birth")
+    @classmethod
+    def _validate_birth_date(cls, value: date, info: ValidationInfo) -> date:
+        role = info.data.get("role")
 
-        return self
+        if role == UserRole.STUDENT:
+            return validators.validate_date_of_birth_student(value)
+        if role in (UserRole.TEACHER, UserRole.DIRECTOR):
+            return validators.validate_date_of_birth_non_student(value)
+
+        return value
 
 
 class UpdateUserIdentityAdmin(BaseModel):
