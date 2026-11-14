@@ -24,11 +24,7 @@ class User(Base):
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False)
-    status: Mapped[UserStatus] = mapped_column(
-        Enum(UserStatus),
-        nullable=False,
-        server_default=UserStatus.PENDING_ACTIVATION.name,
-    )
+    status: Mapped[UserStatus] = mapped_column(Enum(UserStatus), nullable=False)
 
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
 
