@@ -57,12 +57,12 @@ REJECTED_NAMES = [
 ]
 
 
-@pytest.mark.parametrize(("input", "returned"), ACCEPTED_NAMES)
-def test_validate_name_accepted(input: str, returned: str):
-    assert validate_name(input, "first_name") == returned
+@pytest.mark.parametrize(("raw", "expected"), ACCEPTED_NAMES)
+def test_validate_name_accepted(raw: str, expected: str):
+    assert validate_name(raw, "first_name") == expected
 
 
-@pytest.mark.parametrize("input", REJECTED_NAMES)
-def test_validate_name_rejected(input):
+@pytest.mark.parametrize("raw", REJECTED_NAMES)
+def test_validate_name_rejected(raw):
     with pytest.raises(PydanticCustomError):
-        validate_name(input, "first_name")
+        validate_name(raw, "first_name")
