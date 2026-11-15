@@ -189,17 +189,17 @@ async def update_user_identity(
     except IntegrityError as exc:
         await db_session.rollback()
 
-        error = exc.orig.__cause__.constraint_name
+        constraint_name = get_integrity_error_constraint_name(exc)
 
         logger.warning(
             "updating_user_identity_failed",
             failure_reason="integrity_error",
-            error=error,
+            constraint_name=constraint_name,
             user_id=user_id,
             requested_by=actor_id,
         )
 
-        user_exceptions.handle_phone_number_integrity_error(error)
+        user_exceptions.handle_phone_number_integrity_error(constraint_name)
 
         raise
 
@@ -225,7 +225,7 @@ async def update_user_identity(
 
 async def update_user_email(
     db_session: AsyncSession,
-    redis_client: Redis,
+    redis_client: Redis | None,
     actor_id: int,
     user_id: int,
     payload: user_schemas_admin.UpdateUserEmailAdmin,
@@ -267,20 +267,22 @@ async def update_user_email(
     except IntegrityError as exc:
         await db_session.rollback()
 
+        constraint_name = get_integrity_error_constraint_name(exc)
+
         logger.warning(
             "updating_user_email_failed",
             failure_reason="integrity_error",
-            error=str(exc.orig),
+            constraint_name=constraint_name,
             user_id=user_id,
             requested_by=actor_id,
         )
 
-        user_exceptions.handle_email_integrity_error(exc)
+        user_exceptions.handle_email_integrity_error(constraint_name)
 
         raise
 
     await delete_cache(
-        redis,
+        redis_client,
         UsersCacheKeys.detailed_response_key_admin(user_id),
         UsersCacheKeys.detailed_response_key_staff(user_id),
         UsersCacheKeys.detailed_response_key_self(user_id),
@@ -295,7 +297,7 @@ async def update_user_email(
 
 
 async def deactivate_user_account(
-    db_session: AsyncSession, redis_client: Redis, actor_id: int, user_id: int
+    db_session: AsyncSession, redis_client: Redis | None, actor_id: int, user_id: int
 ) -> None:
     user = await user_base_repository.get_by_id(
         db_session, user_id, excluded_roles=SYSTEM_ADMIN_ROLE
@@ -346,7 +348,7 @@ async def deactivate_user_account(
     await db_session.commit()
 
     await delete_cache(
-        redis,
+        redis_client,
         UsersCacheKeys.detailed_response_key_admin(user_id),
         UsersCacheKeys.detailed_response_key_staff(user_id),
     )
@@ -359,7 +361,11 @@ async def deactivate_user_account(
 
 
 async def activate_user_account(
-    db_session: AsyncSession, redis_client: Redis, actor_id: int, user_id: int
+    db_session: AsyncSession,
+    redis_client: Redis | None,
+    resend_client: AsyncClient | None,
+    actor_id: int,
+    user_id: int,
 ) -> None:
     user = await user_base_repository.get_by_id(
         db_session, user_id, excluded_roles=SYSTEM_ADMIN_ROLE
@@ -392,13 +398,13 @@ async def activate_user_account(
     await db_session.commit()
 
     await delete_cache(
-        redis,
+        redis_client,
         UsersCacheKeys.detailed_response_key_admin(user_id),
         UsersCacheKeys.detailed_response_key_staff(user_id),
     )
 
     send_email_in_background(
-        send_admin_account_activation_email(to_email=user.email),
+        send_admin_account_activation_email(resend_client, to_email=user.email),
         email_type=EmailType.ADMIN_ACCOUNT_ACTIVATION,
     )
 
