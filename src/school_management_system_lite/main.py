@@ -94,9 +94,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
             logger.warning("redis_connection_failed", error=str(exc))
 
         if settings.ENVIRONMENT in ("staging", "production") and resend_client is None:
-            raise RuntimeError(
-                "Resend client must be reachable in staging and production"
-            )
+            raise RuntimeError("Resend client is required in staging and production")
 
         app.state.db_engine = db_engine
         app.state.session_factory = build_session_factory(db_engine)

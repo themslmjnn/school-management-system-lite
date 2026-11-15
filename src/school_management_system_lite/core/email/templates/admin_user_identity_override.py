@@ -1,7 +1,11 @@
+from httpx import AsyncClient
+
 from school_management_system_lite.core.email.service import send_email
 
 
-async def send_admin_identity_override_email(to_email: str) -> None:
+async def send_admin_identity_override_email(
+    resend_client: AsyncClient, to_email: str
+) -> None:
     subject = "Your account information has been updated"
 
     html_body = """
@@ -111,7 +115,8 @@ async def send_admin_identity_override_email(to_email: str) -> None:
     """
 
     await send_email(
-        subject=subject,
-        to_email=to_email,
-        html_body=html_body,
+        resend_client,
+        subject,
+        to_email,
+        html_body,
     )

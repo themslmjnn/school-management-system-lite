@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator, Iterator
+from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -17,6 +18,7 @@ from school_management_system_lite.auth.repositories import (
 from school_management_system_lite.auth.utils.tokens import create_access_token
 from school_management_system_lite.core.config import get_settings
 from school_management_system_lite.core.dependencies.database import get_db_session
+from school_management_system_lite.core.dependencies.resend import get_resend_client
 from school_management_system_lite.core.redis.client import build_redis_client
 from school_management_system_lite.database.base import Base
 from school_management_system_lite.main import app
@@ -25,7 +27,6 @@ from tests.factories import make_director, make_student, make_system_admin, make
 
 settings = get_settings()
 
-# TEST_DB_URL = "sqlite:///./test.db"
 SYNC_DB_URL = URL.create(
     "postgresql+psycopg2",
     username=settings.DB_USER,
@@ -43,10 +44,10 @@ test_engine = create_async_engine(
 
 @pytest.fixture(scope="session", autouse=True)
 def _guard_test_environment() -> None:
-    if get_settings().ENVIRONMENT != "test":
+    if settings.ENVIRONMENT != "test":
         pytest.exit(
             f"Refusing to run tests: ENVIRONMENT is "
-            f"'{get_settings().ENVIRONMENT}', expected 'test'",
+            f"'{settings.ENVIRONMENT}', expected 'test'",
             returncode=2,
         )
 
@@ -96,42 +97,55 @@ async def test_db_session(
 
 
 @pytest_asyncio.fixture
-async def redis_client() -> AsyncIterator[Redis | None]:
-    app.state.settings = get_settings()
+async def test_redis_client() -> AsyncIterator[Redis | None]:
+    redis_client = build_redis_client(settings)
 
-    redis = build_redis_client(app.state.settings)
-
-    app.state.redis = None
+    app.state.redis_client = None
 
     try:
-        await redis.ping()
+        await redis_client.ping()
 
     except Exception:
         yield None
 
-        await redis.aclose()
+        await redis_client.aclose()
 
         return
 
-    app.state.redis = redis
+    app.state.redis_client = redis_client
 
     try:
-        await redis.flushdb()
+        await redis_client.flushdb()
 
-        yield redis
+        yield redis_client
 
     finally:
-        await redis.aclose()
+        await redis_client.aclose()
 
-        app.state.redis = None
+        app.state.redis_client = None
 
 
 @pytest_asyncio.fixture
-async def client(test_db_session: AsyncSession) -> AsyncIterator[AsyncClient]:
+async def integration_client(
+    test_db_session: AsyncSession,
+) -> AsyncIterator[AsyncClient]:
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
-    ) as async_client:
-        yield async_client
+    ) as client:
+        yield client
+
+
+@pytest_asyncio.fixture
+async def test_resend_client() -> AsyncIterator[AsyncMock]:
+    resend_client = AsyncMock(spec=AsyncClient)
+
+    app.dependency_overrides[get_resend_client] = lambda: resend_client
+
+    try:
+        yield resend_client
+
+    finally:
+        app.dependency_overrides.pop(get_resend_client, None)
 
 
 async def make_auth_header(test_db_session: AsyncSession, user: User) -> dict:
