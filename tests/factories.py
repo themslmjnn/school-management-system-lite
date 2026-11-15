@@ -4,7 +4,6 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from school_management_system_lite.auth.models.activation import UserActivation
-from school_management_system_lite.auth.models.session import UserSession
 from school_management_system_lite.core.config import get_settings
 from school_management_system_lite.core.security import generate_token, hash_password
 from school_management_system_lite.users.models import User
@@ -45,7 +44,9 @@ async def make_user(
         email=email or f"user_{n}@example.com",
         role=role,
         status=status,
-        password_hash=await hash_password(password) if password else None,
+        password_hash=await hash_password(password)
+        if password and status != UserStatus.PENDING_ACTIVATION
+        else None,
     )
 
     test_db_session.add(user)
@@ -54,7 +55,7 @@ async def make_user(
     _, activation_token_hash = generate_token()
 
     if status == UserStatus.PENDING_ACTIVATION:
-        new_activation = UserActivation(
+        activation = UserActivation(
             user_id=user.id,
             activation_token_hash=activation_token_hash,
             activation_token_expires_at=(
@@ -63,42 +64,8 @@ async def make_user(
             ),
         )
 
-        test_db_session.add(new_activation)
-
-    test_db_session.add(UserSession(user_id=user.id))
+        test_db_session.add(activation)
 
     await test_db_session.flush()
 
     return user
-
-
-async def make_system_admin(test_db_session: AsyncSession, **kwargs) -> User:
-    return await make_user(
-        test_db_session,
-        role=UserRole.SYSTEM_ADMIN,
-        **kwargs,
-    )
-
-
-async def make_director(test_db_session: AsyncSession, **kwargs) -> User:
-    return await make_user(
-        test_db_session,
-        role=UserRole.DIRECTOR,
-        **kwargs,
-    )
-
-
-async def make_teacher(test_db_session: AsyncSession, **kwargs) -> User:
-    return await make_user(
-        test_db_session,
-        role=UserRole.TEACHER,
-        **kwargs,
-    )
-
-
-async def make_student(test_db_session: AsyncSession, **kwargs) -> User:
-    return await make_user(
-        test_db_session,
-        role=UserRole.STUDENT,
-        **kwargs,
-    )

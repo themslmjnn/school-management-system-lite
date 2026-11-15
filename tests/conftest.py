@@ -23,7 +23,8 @@ from school_management_system_lite.core.redis.client import build_redis_client
 from school_management_system_lite.database.base import Base
 from school_management_system_lite.main import app
 from school_management_system_lite.users.models import User
-from tests.factories import make_director, make_student, make_system_admin, make_teacher
+from school_management_system_lite.users.utils.enums import UserRole
+from tests.factories import make_user
 
 settings = get_settings()
 
@@ -148,12 +149,12 @@ async def test_resend_client() -> AsyncIterator[AsyncMock]:
         app.dependency_overrides.pop(get_resend_client, None)
 
 
-async def make_auth_header(test_db_session: AsyncSession, user: User) -> dict:
+async def make_auth_header(test_db_session: AsyncSession, user: User) -> dict[str, str]:
     user_session = await auth_session_repository.get_by_user_id(
         test_db_session, user.id
     )
 
-    access_token = create_access_token(
+    access_token: str = create_access_token(
         user_id=user.id,
         role=user.role,
         session_id=user_session.id,
@@ -165,20 +166,20 @@ async def make_auth_header(test_db_session: AsyncSession, user: User) -> dict:
 
 
 @pytest_asyncio.fixture
-async def system_admin(test_db_session) -> User:
-    return await make_system_admin(test_db_session)
+async def system_admin(test_db_session: AsyncSession) -> User:
+    return await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
 
 
 @pytest_asyncio.fixture
-async def director(test_db_session) -> User:
-    return await make_director(test_db_session)
+async def director(test_db_session: AsyncSession) -> User:
+    return await make_user(test_db_session, role=UserRole.DIRECTOR)
 
 
 @pytest_asyncio.fixture
-async def teacher(test_db_session) -> User:
-    return await make_teacher(test_db_session)
+async def teacher(test_db_session: AsyncSession) -> User:
+    return await make_user(test_db_session, role=UserRole.TEACHER)
 
 
 @pytest_asyncio.fixture
-async def student(test_db_session) -> User:
-    return await make_student(test_db_session)
+async def student(test_db_session: AsyncSession) -> User:
+    return await make_user(test_db_session, role=UserRole.STUDENT)
