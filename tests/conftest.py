@@ -4,7 +4,8 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from redis.asyncio import Redis
-from sqlalchemy import NullPool, create_engine, event
+from sqlalchemy import NullPool, create_engine
+from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     create_async_engine,
@@ -22,24 +23,22 @@ from school_management_system_lite.main import app
 from school_management_system_lite.users.models import User
 from tests.factories import make_director, make_student, make_system_admin, make_teacher
 
-TEST_DB_URL = "sqlite:///./test.db"
+settings = get_settings()
 
-test_engine = create_async_engine(
-    "sqlite+aiosqlite:///./test.db",
-    poolclass=NullPool,
+# TEST_DB_URL = "sqlite:///./test.db"
+SYNC_DB_URL = URL.create(
+    "postgresql+psycopg2",
+    username=settings.DB_USER,
+    password=settings.DB_PASSWORD.get_secret_value(),
+    host=settings.DB_HOST,
+    port=settings.DB_PORT,
+    database=settings.DB_NAME,
 )
 
-
-@event.listens_for(test_engine.sync_engine, "connect")
-def _sqlite_disable_driver_transactions(dbapi_connection, connection_record) -> None:
-    # Stop the driver from managing transactions itself,
-    # so SQLAlchemy controls BEGIN/SAVEPOINT/ROLLBACK.
-    dbapi_connection.isolation_level = None
-
-
-@event.listens_for(test_engine.sync_engine, "begin")
-def _sqlite_emit_begin(conn) -> None:
-    conn.exec_driver_sql("BEGIN")
+test_engine = create_async_engine(
+    url=settings.DATABASE_URL,
+    poolclass=NullPool,
+)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -54,7 +53,7 @@ def _guard_test_environment() -> None:
 
 @pytest.fixture(scope="session")
 def create_tables(_guard_test_environment: None) -> Iterator[None]:
-    sync_engine = create_engine(TEST_DB_URL, poolclass=NullPool)
+    sync_engine = create_engine(SYNC_DB_URL, poolclass=NullPool)
 
     try:
         Base.metadata.create_all(sync_engine)

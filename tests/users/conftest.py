@@ -9,11 +9,11 @@ from school_management_system_lite.users.utils.enums import UserRole
 @pytest.fixture
 def valid_user_payload():
     return CreateUserAdmin(
-        first_name="Valid-first-name",
-        last_name="Valid-last-name",
+        first_name="Valid-firstname",
+        last_name="Valid-lastname",
         date_of_birth="2008-05-01",
-        address="valid_address",
-        phone_number="+992222111222",
+        address="valid_test_address",
+        phone_number="+992777777777",
         email="valid_student_email@gmail.com",
         role=UserRole.STUDENT,
     )

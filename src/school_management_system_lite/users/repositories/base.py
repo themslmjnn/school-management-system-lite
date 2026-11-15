@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from school_management_system_lite.core.enums import OrderBy
 from school_management_system_lite.users.models import User
+from school_management_system_lite.users.schemas.director import UserFiltersDirector
 from school_management_system_lite.users.schemas.system_admin import (
-    UserBaseFilters,
     UserFiltersAdmin,
 )
 from school_management_system_lite.users.utils.enums import UserRole, UserSortField
@@ -38,7 +38,7 @@ async def get_by_email(db_session: AsyncSession, email: str) -> User | None:
 
 
 def apply_base_filters(
-    base_query: Select, filters: UserBaseFilters | UserFiltersAdmin
+    base_query: Select, filters: UserFiltersDirector | UserFiltersAdmin
 ) -> Select:
     if filters is None:
         return base_query
@@ -92,7 +92,7 @@ async def get_users(
     *,
     excluded_roles: frozenset[UserRole] | None = None,
     allowed_roles: frozenset[UserRole] | None = None,
-    filters: UserBaseFilters | UserFiltersAdmin,
+    filters: UserFiltersDirector | UserFiltersAdmin,
     sort_by: str = UserSortField.CREATED_AT,
     order: str = OrderBy.DESC,
     skip: int = 0,

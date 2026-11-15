@@ -77,7 +77,7 @@ class CreateUserAdmin(BaseModel):
 
         if role == UserRole.STUDENT:
             return validators.validate_date_of_birth_student(value)
-        if role in (UserRole.TEACHER, UserRole.DIRECTOR):
+        elif role in (UserRole.TEACHER, UserRole.DIRECTOR):
             return validators.validate_date_of_birth_non_student(value)
 
         return value

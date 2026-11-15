@@ -1,5 +1,4 @@
 from datetime import UTC, datetime, timedelta
-from zoneinfo import ZoneInfo
 
 import structlog
 from redis.asyncio import Redis
@@ -95,9 +94,9 @@ async def register_user(
 
         raw_activation_token, activation_token_hash = generate_token()
 
-        activation_token_expires_at = datetime.now(
-            ZoneInfo(get_settings().SCHOOL_TIMEZONE)
-        ) + timedelta(hours=settings.ACTIVATION_TOKEN_EXPIRES_HOURS)
+        activation_token_expires_at = datetime.now(UTC) + timedelta(
+            hours=settings.ACTIVATION_TOKEN_EXPIRES_HOURS
+        )
 
         db_session.add(
             UserActivation(
@@ -130,7 +129,7 @@ async def register_user(
         logger.warning(
             "user_registration_failed",
             failure_reason="integrity_error",
-            constraint=exc.orig.constraint_name,
+            constraint=exc.orig.__cause__.constraint_name,
             requested_by=actor_id,
         )
 

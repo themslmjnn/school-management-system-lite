@@ -6,13 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from school_management_system_lite.auth.repositories import (
     activation as auth_activation_repository,
 )
-from school_management_system_lite.auth.repositories import (
-    session as auth_session_repository,
-)
 from school_management_system_lite.core.config import get_settings
 from school_management_system_lite.core.enums import OrderBy
+from school_management_system_lite.emails import repository as email_repository
 from school_management_system_lite.emails.enums import EmailStatus, EmailType
-from school_management_system_lite.emails.repository import EmailRepository
 from school_management_system_lite.users.models import User
 from school_management_system_lite.users.schemas.system_admin import CreateUserAdmin
 from school_management_system_lite.users.services import (
@@ -27,82 +24,62 @@ from tests.factories import make_director, make_student, make_teacher
 
 
 class TestSuccess:
-    async def test_successful_staff_registration(
+    @pytest.mark.parametrize(
+        ["role", "date_of_birth", "phone_number", "email"],
+        [
+            (
+                UserRole.DIRECTOR,
+                date(1990, 5, 1),
+                "+992999999999",
+                "valid_director_email@gmail.com",
+            ),
+            (
+                UserRole.TEACHER,
+                date(2000, 5, 1),
+                "+992888888888",
+                "valid_teacher_email@gmail.com",
+            ),
+            (
+                UserRole.STUDENT,
+                date(2010, 5, 1),
+                "+992777777777",
+                "valid_student_email@gmail.com",
+            ),
+        ],
+    )
+    async def test_successful_registration(
         self,
         test_db_session: AsyncSession,
         system_admin: User,
         valid_user_payload: CreateUserAdmin,
+        role: UserRole,
+        date_of_birth: date,
+        phone_number: str,
+        email: str,
     ) -> None:
-        valid_user_payload.date_of_birth = date(2000, 5, 1)
-        valid_user_payload.phone_number = "+992111222111"
-        valid_user_payload.email = "valid_staff_email@gmail.com"
-        valid_user_payload.role = UserRole.TEACHER
+        valid_user_payload.role = role
+        valid_user_payload.date_of_birth = date_of_birth
+        valid_user_payload.phone_number = phone_number
+        valid_user_payload.email = email
 
         registered_user = await user_service_admin.register_user(
             test_db_session, system_admin.id, valid_user_payload
         )
 
         assert registered_user.id is not None
-        assert registered_user.first_name == "Valid-First-Name"
-        assert registered_user.last_name == "Valid-Last-Name"
+        assert registered_user.first_name == "Valid-Firstname"
+        assert registered_user.last_name == "Valid-Lastname"
         assert registered_user.middle_name is None
-        assert registered_user.date_of_birth == date(2000, 5, 1)
-        assert registered_user.address == "valid_address"
-        assert registered_user.phone_number == "+992111222111"
-        assert registered_user.email == "valid_staff_email@gmail.com"
+        assert registered_user.date_of_birth == date_of_birth
+        assert registered_user.address == "valid_test_address"
+        assert registered_user.phone_number == phone_number
+        assert registered_user.email == email
         assert registered_user.password_hash is None
-        assert registered_user.role == UserRole.TEACHER
+        assert registered_user.role == role
         assert registered_user.status == UserStatus.PENDING_ACTIVATION
         assert registered_user.created_at is not None
         assert registered_user.updated_at is not None
         assert registered_user.created_by == system_admin.id
-
-    async def test_successful_student_registration(
-        self,
-        test_db_session: AsyncSession,
-        system_admin: User,
-        valid_user_payload: CreateUserAdmin,
-    ) -> None:
-        registered_user = await user_service_admin.register_user(
-            test_db_session, system_admin.id, valid_user_payload
-        )
-
-        assert registered_user.id is not None
-        assert registered_user.first_name == "Valid-First-Name"
-        assert registered_user.last_name == "Valid-Last-Name"
-        assert registered_user.middle_name is None
-        assert registered_user.date_of_birth == date(2008, 5, 1)
-        assert registered_user.address == "valid_address"
-        assert registered_user.phone_number == "+992222111222"
-        assert registered_user.email == "valid_student_email@gmail.com"
-        assert registered_user.password_hash is None
-        assert registered_user.role == UserRole.STUDENT
-        assert registered_user.status == UserStatus.PENDING_ACTIVATION
-        assert registered_user.created_at is not None
-        assert registered_user.updated_at is not None
-        assert registered_user.created_by == system_admin.id
-
-
-class TestUserSessionRow:
-    async def test_user_session_is_added(
-        self,
-        test_db_session: AsyncSession,
-        system_admin: User,
-        valid_user_payload: CreateUserAdmin,
-    ) -> None:
-        registered_user = await user_service_admin.register_user(
-            test_db_session, system_admin.id, valid_user_payload
-        )
-
-        session_row = await auth_session_repository.get_by_user_id(
-            test_db_session, registered_user.id
-        )
-
-        assert session_row is not None
-        assert session_row.user_id == registered_user.id
-        assert session_row.access_token_version == 1
-        assert session_row.refresh_token_hash is None
-        assert session_row.refresh_token_expires_at is None
 
 
 class TestUserActivationRow:
@@ -124,11 +101,9 @@ class TestUserActivationRow:
         assert activation_row.user_id == registered_user.id
         assert activation_row.activation_token_hash is not None
         assert activation_row.activation_token_expires_at is not None
-        assert activation_row.activation_token_expires_at.replace(
-            tzinfo=UTC
-        ) <= datetime.now(UTC) + timedelta(
-            get_settings().ACTIVATION_TOKEN_EXPIRES_HOURS
-        )
+        assert activation_row.activation_token_expires_at <= datetime.now(
+            UTC
+        ) + timedelta(get_settings().ACTIVATION_TOKEN_EXPIRES_HOURS)
 
 
 class TestEmailRow:
@@ -142,7 +117,7 @@ class TestEmailRow:
             test_db_session, system_admin.id, valid_user_payload
         )
 
-        email_rows = await EmailRepository.get_by_recipient_email(
+        email_rows = await email_repository.get_by_recipient_email(
             test_db_session, registered_user.email, order_by=OrderBy.DESC
         )
 

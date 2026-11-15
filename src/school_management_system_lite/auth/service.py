@@ -43,7 +43,7 @@ async def login(
 
         raise auth_exceptions.InvalidCredentialsError()
 
-    if not verify_password(form_data.password, user.password_hash):
+    if not await verify_password(form_data.password, user.password_hash):
         logger.warning(
             "login_failed",
             failure_reason="incorrect_password",
