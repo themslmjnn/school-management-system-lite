@@ -3,7 +3,7 @@ from school_management_system_lite.users.utils.enums import UserRole
 SYSTEM_ADMIN_ROLE = frozenset({UserRole.SYSTEM_ADMIN})
 STAFF_ROLES = frozenset({UserRole.DIRECTOR, UserRole.TEACHER})
 
-NAME_MIN_LENGTH = 3
+NAME_MIN_LENGTH = 2
 NAME_MAX_LENGTH = 30
 
 PHONE_MIN_DIGITS = 8

@@ -10,16 +10,13 @@ from school_management_system_lite.users.utils.helpers import (
     school_today,
 )
 
-_LATIN = "A-Za-zÀ-ÖØ-öø-ÿ"
-_CYRILLIC = "А-Яа-яЁё"
-_NAME_PATTERN = re.compile(rf"[{_LATIN}{_CYRILLIC}]+(?:[ '\-][{_LATIN}{_CYRILLIC}]+)*")
-_LATIN_RE = re.compile(rf"[{_LATIN}]")
-_CYRILLIC_RE = re.compile(rf"[{_CYRILLIC}]")
-_SEPARATORS_RE = re.compile(r"[ '\-]")
+_WORD = r"[A-Za-z]{2,}(?:[-'][A-Za-z]{2,})?"
+_NAME_PATTERN = re.compile(rf"{_WORD}(?: {_WORD}){{0,2}}")
+_LETTER_GROUP = re.compile(r"[A-Za-z]+")
 
 
 def validate_name(value: str, field: str) -> str:
-    value = unicodedata.normalize("NFC", " ".join(value.split()))
+    value = " ".join(value.split())
     label = field.replace("_", " ").capitalize()
 
     if not (
@@ -34,19 +31,12 @@ def validate_name(value: str, field: str) -> str:
     if not _NAME_PATTERN.fullmatch(value):
         raise PydanticCustomError(
             f"invalid_{field}_characters",
-            f"{label} can only contain English, accented Latin, or Russian "
-            "letters, spaces, hyphens, and apostrophes. Hyphens and apostrophes "
-            "must be placed between letters and cannot repeat",
+            f"{label} can contain at most three words of English letters "
+            "(at least 2 letters each). A word may contain one hyphen or "
+            "apostrophe between letters",
         )
 
-    for word in _SEPARATORS_RE.split(value):
-        if _LATIN_RE.search(word) and _CYRILLIC_RE.search(word):
-            raise PydanticCustomError(
-                f"invalid_{field}_mixed_scripts",
-                f"{label} cannot mix Latin and Cyrillic letters within one word",
-            )
-
-    return value
+    return _LETTER_GROUP.sub(lambda m: m.group().capitalize(), value)
 
 
 def validate_first_name(firstname: str) -> str:
@@ -168,7 +158,7 @@ def valdiate_address(address: str) -> str | None:
     if not address:
         return None
 
-    if len(address) > user_constants.ADDRESS_MIN_LENGTH:
+    if len(address) < user_constants.ADDRESS_MIN_LENGTH:
         raise PydanticCustomError(
             "invalid_address_length",
             f"Address must be at least {user_constants.ADDRESS_MIN_LENGTH} characters",
