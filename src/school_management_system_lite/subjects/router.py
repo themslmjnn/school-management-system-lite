@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, status
 
-from school_management_system_lite.core.dependencies.auth import db_session_dependency
+from school_management_system_lite.core.dependencies.auth import db_session_dep
 from school_management_system_lite.subjects.schemas import (
     CreateSubject,
     SubjectResponseBase,
@@ -22,7 +22,7 @@ router = APIRouter(
     "", response_model=SubjectResponseDetailed, status_code=status.HTTP_201_CREATED
 )
 async def create_subject(
-    db_session: db_session_dependency,
+    db_session: db_session_dep,
     payload: CreateSubject,
 ):
     return await SubjectService.create_subject(db_session, payload)
@@ -34,7 +34,7 @@ async def create_subject(
     status_code=status.HTTP_200_OK,
 )
 async def update_subject(
-    db_session: db_session_dependency,
+    db_session: db_session_dep,
     subject_id: Annotated[int, Path(ge=1)],
     payload: UpdateSubject,
 ):
@@ -43,7 +43,7 @@ async def update_subject(
 
 @router.patch("/{subject_id}/archive", status_code=status.HTTP_204_NO_CONTENT)
 async def archive_subject(
-    db_session: db_session_dependency,
+    db_session: db_session_dep,
     subject_id: Annotated[int, Path(ge=1)],
 ):
     await SubjectService.archive_subject(db_session, subject_id)
@@ -51,7 +51,7 @@ async def archive_subject(
 
 @router.patch("/{subject_id}/restore", status_code=status.HTTP_204_NO_CONTENT)
 async def restore_subject(
-    db_session: db_session_dependency,
+    db_session: db_session_dep,
     subject_id: Annotated[int, Path(ge=1)],
 ):
     await SubjectService.restore_subject(db_session, subject_id)
@@ -60,7 +60,7 @@ async def restore_subject(
 @router.get(
     "", response_model=Sequence[SubjectResponseBase], status_code=status.HTTP_200_OK
 )
-async def get_subjects(db_session: db_session_dependency):
+async def get_subjects(db_session: db_session_dep):
     return await SubjectService.get_subjects(db_session)
 
 
@@ -70,6 +70,6 @@ async def get_subjects(db_session: db_session_dependency):
     status_code=status.HTTP_200_OK,
 )
 async def get_subject(
-    db_session: db_session_dependency, subject_id: Annotated[int, Path(ge=1)]
+    db_session: db_session_dep, subject_id: Annotated[int, Path(ge=1)]
 ):
     return await SubjectService.get_subject(db_session, subject_id)

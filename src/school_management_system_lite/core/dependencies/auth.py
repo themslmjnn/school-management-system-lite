@@ -11,7 +11,7 @@ from school_management_system_lite.auth.repositories import (
 from school_management_system_lite.auth.utils import exceptions as auth_exceptions
 from school_management_system_lite.auth.utils import tokens as auth_tokens
 from school_management_system_lite.core.dependencies.database import (
-    db_session_dependency,
+    db_session_dep,
 )
 from school_management_system_lite.core.exceptions.exceptions import AccessDeniedError
 from school_management_system_lite.users.repositories import (
@@ -31,7 +31,7 @@ class CurrentUser:
 
 async def authenticate_user(
     request: Request,
-    db_session: db_session_dependency,
+    db_session: db_session_dep,
     access_token: Annotated[str | None, Depends(oauth2_scheme)],
 ) -> CurrentUser:
     if access_token is None:

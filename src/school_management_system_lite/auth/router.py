@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from school_management_system_lite.auth import service as auth_service
 from school_management_system_lite.auth.schemas import LoginResponse
-from school_management_system_lite.core.dependencies.auth import db_session_dependency
+from school_management_system_lite.core.dependencies.auth import db_session_dep
 
 router = APIRouter(tags=["Auth"])
 
@@ -16,7 +16,7 @@ router = APIRouter(tags=["Auth"])
 async def login(
     request: Request,
     response: Response,
-    db_session: db_session_dependency,
+    db_session: db_session_dep,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ):
     return await auth_service.login(
