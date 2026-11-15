@@ -1,6 +1,8 @@
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
+from sqlalchemy.exc import IntegrityError
+
 from school_management_system_lite.core.config import get_settings
 
 
@@ -16,4 +18,12 @@ def calculate_age(birth_date: date, today: date | None = None) -> int:
         today.year
         - birth_date.year
         - ((today.month, today.day) < (birth_date.month, birth_date.day))
+    )
+
+
+def get_integrity_error_constraint_name(exc: IntegrityError) -> str | None:
+    return getattr(
+        getattr(exc.orig, "__cause__", None),
+        "constraint_name",
+        None,
     )

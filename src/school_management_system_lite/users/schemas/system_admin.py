@@ -7,6 +7,7 @@ from pydantic import (
     Field,
     ValidationInfo,
     field_validator,
+    model_validator,
 )
 
 from school_management_system_lite.users.utils import validators
@@ -137,6 +138,16 @@ class UpdateUserIdentityAdmin(BaseModel):
             return None
 
         return validators.valdiate_address(address)
+
+    @model_validator(mode="after")
+    def validate_non_nullable_fields(self):
+        non_nullable_fields = {"first_name", "last_name", "phone_number"}
+
+        for field in non_nullable_fields:
+            if field in self.model_fields_set and getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be null")
+
+        return self
 
 
 class UpdateUserEmailAdmin(BaseModel):

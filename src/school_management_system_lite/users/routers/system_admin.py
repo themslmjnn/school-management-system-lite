@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, Path, status
 
 from school_management_system_lite.core.dependencies.auth import require_system_admin
 from school_management_system_lite.core.dependencies.database import (
-    db_session_dependency,
+    db_session_dep,
 )
-from school_management_system_lite.core.dependencies.redis import redis_dependency
+from school_management_system_lite.core.dependencies.redis import redis_client_dep
+from school_management_system_lite.core.dependencies.resend import resend_client_dep
 from school_management_system_lite.core.enums import OrderBy
 from school_management_system_lite.core.pagination import (
     PaginatedResponse,
@@ -31,7 +32,7 @@ router = APIRouter(
     status_code=status.HTTP_201_CREATED,
 )
 async def register_user(
-    db_session: db_session_dependency,
+    db_session: db_session_dep,
     authenticated_user: require_system_admin,
     payload: user_schemas_admin.CreateUserAdmin,
 ):
@@ -45,14 +46,20 @@ async def register_user(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def update_user_identity(
-    db_session: db_session_dependency,
-    redis: redis_dependency,
+    db_session: db_session_dep,
+    redis_client: redis_client_dep,
+    resend_client: resend_client_dep,
     authenticated_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
     payload: user_schemas_admin.UpdateUserIdentityAdmin,
 ):
     return await user_service_admin.update_user_identity(
-        db_session, redis, authenticated_user.user_id, user_id, payload
+        db_session,
+        redis_client,
+        resend_client,
+        authenticated_user.user_id,
+        user_id,
+        payload,
     )
 
 
@@ -61,14 +68,14 @@ async def update_user_identity(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def update_user_email(
-    db_session: db_session_dependency,
-    redis: redis_dependency,
+    db_session: db_session_dep,
+    redis_client: redis_client_dep,
     authenticated_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
     payload: user_schemas_admin.UpdateUserEmailAdmin,
 ):
     return await user_service_admin.update_user_email(
-        db_session, redis, authenticated_user.user_id, user_id, payload
+        db_session, redis_client, authenticated_user.user_id, user_id, payload
     )
 
 
@@ -76,13 +83,13 @@ async def update_user_email(
     "/admin/users/{user_id}/deactivation", status_code=status.HTTP_204_NO_CONTENT
 )
 async def deactivate_user_account(
-    db_session: db_session_dependency,
-    redis: redis_dependency,
+    db_session: db_session_dep,
+    redis_client: redis_client_dep,
     authenticated_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
 ):
     await user_service_admin.deactivate_user_account(
-        db_session, redis, authenticated_user.user_id, user_id
+        db_session, redis_client, authenticated_user.user_id, user_id
     )
 
 
@@ -90,13 +97,13 @@ async def deactivate_user_account(
     "/admin/users/{user_id}/activation", status_code=status.HTTP_204_NO_CONTENT
 )
 async def activate_user_account(
-    db_session: db_session_dependency,
-    redis: redis_dependency,
+    db_session: db_session_dep,
+    redis_client: redis_client_dep,
     authenticated_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
 ):
     await user_service_admin.activate_user_account(
-        db_session, redis, authenticated_user.user_id, user_id
+        db_session, redis_client, authenticated_user.user_id, user_id
     )
 
 
@@ -104,7 +111,7 @@ async def activate_user_account(
     "/admin/users/{user_id}/password-reset", status_code=status.HTTP_202_ACCEPTED
 )
 async def request_password_reset(
-    db_session: db_session_dependency,
+    db_session: db_session_dep,
     authenticated_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
 ):
@@ -117,7 +124,7 @@ async def request_password_reset(
     "/admin/users/{user_id}/resend-activation", status_code=status.HTTP_202_ACCEPTED
 )
 async def resend_activation_token(
-    db_session: db_session_dependency,
+    db_session: db_session_dep,
     authenticated_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
 ):
@@ -132,7 +139,7 @@ async def resend_activation_token(
     status_code=status.HTTP_200_OK,
 )
 async def get_staff(
-    db_session: db_session_dependency,
+    db_session: db_session_dep,
     _authenticated_user: require_system_admin,
     pagination: pagination_dependency,
     filters: Annotated[user_schemas_admin.UserFiltersAdmin, Depends()],
@@ -150,8 +157,8 @@ async def get_staff(
     status_code=status.HTTP_200_OK,
 )
 async def get_single_staff(
-    db_session: db_session_dependency,
-    redis_client: redis_dependency,
+    db_session: db_session_dep,
+    redis_client: redis_client_dep,
     _authenticated_user: require_system_admin,
     user_id: int,
 ):

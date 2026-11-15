@@ -20,7 +20,7 @@ _background_tasks: set[asyncio.Task[None]] = set()
 
 
 async def send_email(
-    resend_client: AsyncClient, subject: str, to_email: str, html_body: str
+    resend_client: AsyncClient | None, subject: str, to_email: str, html_body: str
 ) -> None:
     """
     Send an email via the appropriate provider for the current environment.

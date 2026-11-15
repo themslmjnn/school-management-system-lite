@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 import structlog
+from httpx import AsyncClient
 from redis.asyncio import Redis
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +18,7 @@ from school_management_system_lite.auth.repositories import (
 from school_management_system_lite.auth.repositories import (
     session as auth_session_repository,
 )
-from school_management_system_lite.core.config import Settings, get_settings
+from school_management_system_lite.core.config import get_settings
 from school_management_system_lite.core.email.service import send_email_in_background
 from school_management_system_lite.core.email.templates.account_activation import (
     build_account_activation_email,
@@ -64,6 +65,9 @@ from school_management_system_lite.users.utils.constants import (
     SYSTEM_ADMIN_ROLE,
 )
 from school_management_system_lite.users.utils.enums import UserSortField, UserStatus
+from school_management_system_lite.users.utils.helpers import (
+    get_integrity_error_constraint_name,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -73,7 +77,7 @@ async def register_user(
     actor_id: int,
     payload: user_schemas_admin.CreateUserAdmin,
 ) -> User:
-    settings: Settings = get_settings()
+    settings = get_settings()
 
     try:
         user = User(
@@ -126,15 +130,17 @@ async def register_user(
     except IntegrityError as exc:
         await db_session.rollback()
 
+        constraint_name = get_integrity_error_constraint_name(exc)
+
         logger.warning(
             "user_registration_failed",
             failure_reason="integrity_error",
-            constraint=exc.orig.__cause__.constraint_name,
+            constraint_name=constraint_name,
             requested_by=actor_id,
         )
 
-        user_exceptions.handle_phone_number_integrity_error(exc)
-        user_exceptions.handle_email_integrity_error(exc)
+        user_exceptions.handle_phone_number_integrity_error(constraint_name)
+        user_exceptions.handle_email_integrity_error(constraint_name)
 
         raise
 
@@ -149,7 +155,8 @@ async def register_user(
 
 async def update_user_identity(
     db_session: AsyncSession,
-    redis: Redis,
+    redis_client: Redis | None,
+    resend_client: AsyncClient | None,
     actor_id: int,
     user_id: int,
     payload: user_schemas_admin.UpdateUserIdentityAdmin,
@@ -160,8 +167,8 @@ async def update_user_identity(
     if user is None:
         raise user_exceptions.UserNotFoundError()
 
-    payload = payload.model_dump(exclude_unset=True, exclude_none=True)
-    if payload is None:
+    payload = payload.model_dump(exclude_unset=True)
+    if not payload:
         return
 
     try:
@@ -182,27 +189,29 @@ async def update_user_identity(
     except IntegrityError as exc:
         await db_session.rollback()
 
+        error = exc.orig.__cause__.constraint_name
+
         logger.warning(
             "updating_user_identity_failed",
             failure_reason="integrity_error",
-            error=str(exc.orig),
+            error=error,
             user_id=user_id,
             requested_by=actor_id,
         )
 
-        user_exceptions.handle_phone_number_integrity_error(exc)
+        user_exceptions.handle_phone_number_integrity_error(error)
 
         raise
 
     await delete_cache(
-        redis,
+        redis_client,
         UsersCacheKeys.detailed_response_key_admin(user_id),
         UsersCacheKeys.detailed_response_key_staff(user_id),
         UsersCacheKeys.detailed_response_key_self(user_id),
     )
 
     send_email_in_background(
-        send_admin_identity_override_email(user.email),
+        send_admin_identity_override_email(resend_client, user.email),
         email_type=EmailType.ADMIN_USER_IDENTITY_OVERRIDE,
     )
 
@@ -216,7 +225,7 @@ async def update_user_identity(
 
 async def update_user_email(
     db_session: AsyncSession,
-    redis: Redis,
+    redis_client: Redis,
     actor_id: int,
     user_id: int,
     payload: user_schemas_admin.UpdateUserEmailAdmin,
@@ -286,7 +295,7 @@ async def update_user_email(
 
 
 async def deactivate_user_account(
-    db_session: AsyncSession, redis: Redis, actor_id: int, user_id: int
+    db_session: AsyncSession, redis_client: Redis, actor_id: int, user_id: int
 ) -> None:
     user = await user_base_repository.get_by_id(
         db_session, user_id, excluded_roles=SYSTEM_ADMIN_ROLE
@@ -350,7 +359,7 @@ async def deactivate_user_account(
 
 
 async def activate_user_account(
-    db_session: AsyncSession, redis: Redis, actor_id: int, user_id: int
+    db_session: AsyncSession, redis_client: Redis, actor_id: int, user_id: int
 ) -> None:
     user = await user_base_repository.get_by_id(
         db_session, user_id, excluded_roles=SYSTEM_ADMIN_ROLE
