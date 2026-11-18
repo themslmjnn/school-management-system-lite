@@ -581,7 +581,7 @@ async def resend_activation_token(
     )
 
 
-async def get_staff(
+async def list_staff(
     db_session: AsyncSession,
     skip: int,
     limit: int,
@@ -589,9 +589,8 @@ async def get_staff(
     sort_by: UserSortField,
     order: OrderBy,
 ) -> PaginatedResponse:
-    staff, total = await user_repository_admin.get_users_admin(
+    staff, total = await user_repository_admin.list_users(
         db_session,
-        excluded_roles=SYSTEM_ADMIN_ROLE,
         allowed_roles=STAFF_ROLES,
         skip=skip,
         limit=limit,

@@ -139,7 +139,7 @@ async def resend_activation_token(
     response_model=PaginatedResponse[user_schemas_admin.UserResponseBaseAdmin],
     status_code=status.HTTP_200_OK,
 )
-async def get_staff(
+async def list_staff(
     db_session: db_session_dep,
     _authenticated_user: require_system_admin,
     pagination: pagination_dependency,
@@ -147,7 +147,7 @@ async def get_staff(
     sort_by: UserSortField = UserSortField.CREATED_AT,
     order: OrderBy = OrderBy.DESC,
 ):
-    return await user_service_admin.get_staff(
+    return await user_service_admin.list_staff(
         db_session, pagination.skip, pagination.limit, filters, sort_by, order
     )
 

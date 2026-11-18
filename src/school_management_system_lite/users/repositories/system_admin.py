@@ -24,7 +24,7 @@ def apply_admin_filters(base_query: Select, filters: UserFiltersAdmin) -> Select
     return base_query
 
 
-async def get_users_admin(
+async def list_users(
     db_session: AsyncSession,
     *,
     excluded_roles: frozenset[UserRole] | None = None,
@@ -35,7 +35,7 @@ async def get_users_admin(
     skip: int = 0,
     limit: int = 10,
 ) -> tuple[list[User], int]:
-    stmt = select(User)
+    stmt = select(User).where(User.role != UserRole.SYSTEM_ADMIN)
 
     if excluded_roles:
         stmt = stmt.filter(User.role.not_in(excluded_roles))
