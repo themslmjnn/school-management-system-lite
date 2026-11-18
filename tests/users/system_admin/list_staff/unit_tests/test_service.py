@@ -9,7 +9,7 @@ from school_management_system_lite.users.utils.enums import UserRole, UserSortFi
 from tests.factories import make_user
 
 
-async def test_correct_paginated_shape(self, test_db_session: AsyncSession) -> None:
+async def test_correct_paginated_shape(test_db_session: AsyncSession) -> None:
     await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
     await make_user(test_db_session, role=UserRole.DIRECTOR)
     await make_user(test_db_session, role=UserRole.TEACHER)
@@ -32,7 +32,7 @@ async def test_correct_paginated_shape(self, test_db_session: AsyncSession) -> N
 
 
 async def test_has_more_is_true_when_list_exceeds_limit(
-    self, test_db_session: AsyncSession
+    test_db_session: AsyncSession,
 ) -> None:
     await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
     await make_user(test_db_session, role=UserRole.DIRECTOR)
@@ -57,7 +57,7 @@ async def test_has_more_is_true_when_list_exceeds_limit(
 
 
 async def test_system_admin_and_students_are_not_included_in_the_list(
-    self, test_db_session: AsyncSession
+    test_db_session: AsyncSession,
 ) -> None:
     system_admin = await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
     director = await make_user(test_db_session, role=UserRole.DIRECTOR)

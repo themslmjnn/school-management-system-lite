@@ -57,7 +57,7 @@ def apply_base_filters(
     return base_query
 
 
-def apply_sorting(base_query: Select, sort_by: str, order: str) -> Select:
+def apply_sorting(base_query: Select, sort_by: UserSortField, order: OrderBy) -> Select:
     if sort_by not in UserSortField:
         sort_by = UserSortField.CREATED_AT
 
