@@ -57,6 +57,55 @@ class TestSuccess:
         assert response["items"][0]["role"] == director.role
         assert response["items"][0]["status"] == director.status
 
+    async def test_applies_query_parameters(
+        self,
+        test_db_session: AsyncSession,
+        integration_client: AsyncClient,
+        system_admin: User,
+    ) -> None:
+        await make_user(
+            test_db_session,
+            role=UserRole.DIRECTOR,
+            first_name="Shavkat",
+        )
+        matching_teacher = await make_user(
+            test_db_session,
+            role=UserRole.TEACHER,
+            first_name="Umar",
+        )
+        await make_user(
+            test_db_session,
+            role=UserRole.TEACHER,
+            first_name="Shavkat",
+        )
+
+        header = await make_auth_header(test_db_session, system_admin)
+
+        response = await integration_client.get(
+            "/admin/users/staff",
+            params={
+                "first_name": "umar",
+                "sort_by": "first_name",
+                "order": "asc",
+                "skip": 0,
+                "limit": 1,
+            },
+            headers=header,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+
+        response_data = response.json()
+
+        assert response_data["total"] == 1
+        assert response_data["skip"] == 0
+        assert response_data["limit"] == 1
+        assert response_data["has_more"] is False
+        assert len(response_data["items"]) == 1
+
+        assert response_data["items"][0]["id"] == matching_teacher.id
+        assert response_data["items"][0]["first_name"] == "Umar"
+
 
 class TestAuth:
     async def test_unauthenticated_requests_raise_401(

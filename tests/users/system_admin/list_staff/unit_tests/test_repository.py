@@ -92,6 +92,39 @@ class TestFilters:
         assert [director.id, teacher_one.id] == ids
         assert teacher_two.id not in ids
 
+    async def test_applies_multiple_filters(
+        self, test_db_session: AsyncSession
+    ) -> None:
+        matching_user = await make_user(
+            test_db_session,
+            role=UserRole.DIRECTOR,
+            first_name="Umarali",
+            last_name="Mirzoev",
+        )
+        await make_user(
+            test_db_session,
+            role=UserRole.TEACHER,
+            first_name="Shavkat",
+            last_name="Mirzoev",
+        )
+        await make_user(
+            test_db_session,
+            role=UserRole.TEACHER,
+            first_name="Umarali",
+            last_name="Misokov",
+        )
+
+        staff, total = await user_repository_admin.list_users(
+            test_db_session,
+            filters=UserFiltersAdmin(
+                first_name="umar",
+                last_name="mirzo",
+            ),
+        )
+
+        assert total == 1
+        assert [item.id for item in staff] == [matching_user.id]
+
 
 class TestSorting:
     async def test_unknown_sort_by_value_falls_back_to_default(
@@ -102,11 +135,15 @@ class TestSorting:
         await make_user(test_db_session, role=UserRole.STUDENT)
 
         unknown_value_result, _ = await user_repository_admin.list_users(
-            test_db_session, filters=UserFiltersAdmin(), sort_by="EMAIL"
+            test_db_session,
+            filters=UserFiltersAdmin(),
+            sort_by="unknown",
         )
 
         default_value_result, _ = await user_repository_admin.list_users(
-            test_db_session, filters=UserFiltersAdmin(), sort_by="EMAIL"
+            test_db_session,
+            filters=UserFiltersAdmin(),
+            sort_by=UserSortField.CREATED_AT,
         )
 
         assert unknown_value_result == default_value_result
@@ -242,8 +279,8 @@ class TestRolesScope:
     ) -> None:
         director = await make_user(test_db_session, role=UserRole.DIRECTOR)
         teacher = await make_user(test_db_session, role=UserRole.TEACHER)
-        student = await make_user(test_db_session, role=UserRole.STUDENT)
-        student = await make_user(test_db_session, role=UserRole.STUDENT)
+        student_one = await make_user(test_db_session, role=UserRole.STUDENT)
+        student_two = await make_user(test_db_session, role=UserRole.STUDENT)
 
         staff, total = await user_repository_admin.list_users(
             test_db_session,
@@ -253,7 +290,27 @@ class TestRolesScope:
 
         ids = [item.id for item in staff]
 
-        assert student.id in ids
+        assert student_one.id in ids
+        assert student_two.id in ids
         assert director.id not in ids
         assert teacher.id not in ids
         assert total == 2
+
+
+class TestPagination:
+    async def test_applies_skip_and_limit(self, test_db_session: AsyncSession) -> None:
+        await make_user(test_db_session, role=UserRole.DIRECTOR)
+        teacher = await make_user(test_db_session, role=UserRole.TEACHER)
+        await make_user(test_db_session, role=UserRole.STUDENT)
+
+        staff, total = await user_repository_admin.list_users(
+            test_db_session,
+            filters=UserFiltersAdmin(),
+            skip=1,
+            limit=1,
+            sort_by=UserSortField.CREATED_AT,
+            order=OrderBy.ASC,
+        )
+
+        assert total == 3
+        assert [item.id for item in staff] == [teacher.id]
