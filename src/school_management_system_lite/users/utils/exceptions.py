@@ -55,11 +55,11 @@ class ResendActivationTokenDenied(AppException):
 
 
 # EXCEPTION HANDLERS
-def handle_phone_number_integrity_error(constraint_name: str) -> None:
+def handle_phone_number_integrity_error(constraint_name: str | None) -> None:
     if "uq_users_phone_number" == constraint_name:
         raise PhoneNumberAlreadyTakenError()
 
 
-def handle_email_integrity_error(constraint_name: str) -> None:
+def handle_email_integrity_error(constraint_name: str | None) -> None:
     if "uq_users_email" == constraint_name:
         raise EmailAlreadyTakenError()

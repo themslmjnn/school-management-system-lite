@@ -31,12 +31,12 @@ router = APIRouter(
     response_model=user_schemas_admin.UserResponseDetailedAdmin,
     status_code=status.HTTP_201_CREATED,
 )
-async def register_user(
+async def create_user(
     db_session: db_session_dep,
     authenticated_user: require_system_admin,
     payload: user_schemas_admin.CreateUserAdmin,
 ):
-    return await user_service_admin.register_user(
+    return await user_service_admin.create_user(
         db_session, authenticated_user.user_id, payload
     )
 

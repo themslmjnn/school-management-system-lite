@@ -148,7 +148,7 @@ def validate_date_of_birth_non_student(
         birth_date,
         min_age=user_constants.NON_STUDENT_MIN_AGE,
         max_age=user_constants.NON_STUDENT_MAX_AGE,
-        subject="User",
+        subject="Staff",
         today=today,
     )
 

@@ -72,7 +72,7 @@ from school_management_system_lite.users.utils.helpers import (
 logger = structlog.get_logger(__name__)
 
 
-async def register_user(
+async def create_user(
     db_session: AsyncSession,
     actor_id: int,
     payload: user_schemas_admin.CreateUserAdmin,
