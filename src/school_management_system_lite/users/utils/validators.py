@@ -153,7 +153,7 @@ def validate_date_of_birth_non_student(
     )
 
 
-def valdiate_address(address: str) -> str | None:
+def validate_address(address: str) -> str | None:
     address = " ".join(address.split())
     if not address:
         return None
