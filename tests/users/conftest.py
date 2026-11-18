@@ -11,8 +11,9 @@ def valid_user_payload():
     return CreateUserAdmin(
         first_name="Valid-firstname",
         last_name="Valid-lastname",
+        middle_name="Valid-Middlename",
         date_of_birth="2008-05-01",
-        address="valid_test_address",
+        address="Valid test address",
         phone_number="+992777777777",
         email="valid_student_email@gmail.com",
         role=UserRole.STUDENT,

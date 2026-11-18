@@ -89,7 +89,7 @@ class CreateUserAdmin(BaseModel):
         if address is None:
             return None
 
-        return validators.valdiate_address(address)
+        return validators.validate_address(address)
 
 
 class UpdateUserIdentityAdmin(BaseModel):

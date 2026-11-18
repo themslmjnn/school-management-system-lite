@@ -9,7 +9,7 @@ from school_management_system_lite.users.models import User
 from school_management_system_lite.users.schemas.system_admin import CreateUserAdmin
 from school_management_system_lite.users.utils.enums import UserRole, UserStatus
 from tests.conftest import make_auth_header
-from tests.factories import make_director, make_student, make_teacher, make_user
+from tests.factories import make_user
 
 
 class TestSuccess:
@@ -39,7 +39,7 @@ class TestSuccess:
     async def test_successful_registration(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
         valid_user_payload: CreateUserAdmin,
         role: UserRole,
@@ -54,7 +54,7 @@ class TestSuccess:
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.post(
+        response = await integration_client.post(
             "/admin/users",
             headers=header,
             json=valid_user_payload.model_dump(mode="json"),
@@ -67,9 +67,9 @@ class TestSuccess:
         assert response["id"] is not None
         assert response["first_name"] == "Valid-Firstname"
         assert response["last_name"] == "Valid-Lastname"
-        assert response["middle_name"] is None
+        assert response["middle_name"] == "Valid-Middlename"
         assert response["date_of_birth"] == date_of_birth.isoformat()
-        assert response["address"] == "valid_test_address"
+        assert response["address"] == "Valid test address"
         assert response["phone_number"] == phone_number
         assert response["email"] == email
         assert response["role"] == role
@@ -79,9 +79,9 @@ class TestSuccess:
 
 class TestAuth:
     async def test_unauthenticated_requests_raise_401(
-        self, client: AsyncClient, valid_user_payload: CreateUserAdmin
+        self, integration_client: AsyncClient, valid_user_payload: CreateUserAdmin
     ) -> None:
-        response = await client.post(
+        response = await integration_client.post(
             "/admin/users",
             json=valid_user_payload.model_dump(mode="json"),
         )
@@ -94,7 +94,7 @@ class TestAuth:
     async def test_raises_403_on_non_admins(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         valid_user_payload: CreateUserAdmin,
         role: UserRole,
     ) -> None:
@@ -102,7 +102,7 @@ class TestAuth:
 
         header = await make_auth_header(test_db_session, user)
 
-        response = await client.post(
+        response = await integration_client.post(
             "/admin/users",
             headers=header,
             json=valid_user_payload.model_dump(mode="json"),
@@ -126,15 +126,21 @@ class TestDBConstraints:
     async def test_raises_409_on_duplicate_phone_number(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
         valid_user_payload: CreateUserAdmin,
         role: UserRole,
         phone_number: str,
     ) -> None:
-        await make_director(test_db_session, phone_number="+992888888888")
-        await make_teacher(test_db_session, phone_number="+992777777777")
-        await make_student(test_db_session, phone_number="+992666666666")
+        await make_user(
+            test_db_session, phone_number="+992888888888", role=UserRole.DIRECTOR
+        )
+        await make_user(
+            test_db_session, phone_number="+992777777777", role=UserRole.TEACHER
+        )
+        await make_user(
+            test_db_session, phone_number="+992666666666", role=UserRole.STUDENT
+        )
 
         valid_user_payload.phone_number = phone_number
         valid_user_payload.role = role
@@ -144,7 +150,7 @@ class TestDBConstraints:
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.post(
+        response = await integration_client.post(
             "/admin/users",
             headers=header,
             json=valid_user_payload.model_dump(mode="json"),
@@ -166,15 +172,21 @@ class TestDBConstraints:
     async def test_raises_409_on_duplicate_email(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
         valid_user_payload: CreateUserAdmin,
         role: UserRole,
         email: str,
     ) -> None:
-        await make_director(test_db_session, email="director_email@gmail.com")
-        await make_teacher(test_db_session, email="teacher_email@gmail.com")
-        await make_student(test_db_session, email="student_email@gmail.com")
+        await make_user(
+            test_db_session, email="director_email@gmail.com", role=UserRole.DIRECTOR
+        )
+        await make_user(
+            test_db_session, email="teacher_email@gmail.com", role=UserRole.TEACHER
+        )
+        await make_user(
+            test_db_session, email="student_email@gmail.com", role=UserRole.STUDENT
+        )
 
         valid_user_payload.role = role
         valid_user_payload.email = email
@@ -184,7 +196,7 @@ class TestDBConstraints:
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.post(
+        response = await integration_client.post(
             "/admin/users",
             headers=header,
             json=valid_user_payload.model_dump(mode="json"),
