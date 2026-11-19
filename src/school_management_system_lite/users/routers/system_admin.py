@@ -157,10 +157,10 @@ async def list_staff(
     response_model=user_schemas_admin.UserResponseDetailedAdmin,
     status_code=status.HTTP_200_OK,
 )
-async def get_single_staff(
+async def get_staff(
     db_session: db_session_dep,
     redis_client: redis_client_dep,
     _authenticated_user: require_system_admin,
-    user_id: int,
+    user_id: Annotated[int, Path(ge=1)],
 ):
-    return await user_service_admin.get_single_staff(db_session, redis_client, user_id)
+    return await user_service_admin.get_staff(db_session, redis_client, user_id)

@@ -37,8 +37,25 @@ def mock_send_admin_account_activation_email(mocker):
 
 
 @pytest.fixture
+def mock_users_get_cache_system_admin(mocker):
+    return mocker.patch(
+        "school_management_system_lite.users.services.system_admin.get_cache",
+        new_callable=AsyncMock,
+        return_value=None,
+    )
+
+
+@pytest.fixture
 def mock_users_delete_cache_system_admin(mocker):
     return mocker.patch(
         "school_management_system_lite.users.services.system_admin.delete_cache",
+        new_callable=AsyncMock,
+    )
+
+
+@pytest.fixture
+def mock_users_set_cache_system_admin(mocker):
+    return mocker.patch(
+        "school_management_system_lite.users.services.system_admin.set_cache",
         new_callable=AsyncMock,
     )

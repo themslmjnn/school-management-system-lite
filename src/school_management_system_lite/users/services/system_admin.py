@@ -608,7 +608,7 @@ async def list_staff(
     )
 
 
-async def get_single_staff(
+async def get_staff(
     db_session: AsyncSession, redis_client: Redis, user_id: int
 ) -> user_schemas_admin.UserResponseDetailedAdmin:
     cache_key = UsersCacheKeys.detailed_response_key_admin(user_id)
