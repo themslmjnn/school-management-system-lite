@@ -371,6 +371,16 @@ async def activate_user_account(
     if user is None:
         raise user_exceptions.UserNotFoundError()
 
+    if user.status == UserStatus.PENDING_ACTIVATION:
+        logger.warning(
+            "user_account_activation_failed",
+            failure_reason="acount_status_is_pending_activation",
+            user_id=user_id,
+            requested_by=actor_id,
+        )
+
+        raise user_exceptions.UserPendingActivationError()
+
     if user.status == UserStatus.ACTIVE:
         logger.warning(
             "user_account_activation_failed",
@@ -380,16 +390,6 @@ async def activate_user_account(
         )
 
         raise user_exceptions.UserAlreadyActiveError()
-
-    if user.status == UserStatus.PENDING_ACTIVATION:
-        logger.warning(
-            "user_account_activation_failed",
-            failure_reason="user_status_is_pending_activation",
-            user_id=user_id,
-            requested_by=actor_id,
-        )
-
-        raise user_exceptions.UserPendingActivationError()
 
     user.status = UserStatus.ACTIVE
 
@@ -402,7 +402,7 @@ async def activate_user_account(
     )
 
     send_email_in_background(
-        send_admin_account_activation_email(resend_client, to_email=user.email),
+        send_admin_account_activation_email(resend_client, user.email),
         email_type=EmailType.ADMIN_ACCOUNT_ACTIVATION,
     )
 

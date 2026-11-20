@@ -28,7 +28,7 @@ class TestSuccess:
     async def test_successful_update(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
         mock_users_delete_cache_system_admin,
     ) -> None:
@@ -49,7 +49,7 @@ class TestSuccess:
     async def test_nothing_changes_if_payload_is_empty(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
         mock_users_delete_cache_system_admin,
     ) -> None:
@@ -72,7 +72,7 @@ class TestSuccess:
     async def test_nothing_changes_if_current_values_are_provided(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
         mock_users_delete_cache_system_admin,
     ) -> None:
@@ -95,7 +95,7 @@ class TestSuccess:
     async def test_null_value_is_ignored(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
         mock_users_delete_cache_system_admin,
     ) -> None:
@@ -120,7 +120,7 @@ class TestEligibleUsers:
     async def test_updating_system_admin_is_prevented(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
     ) -> None:
         with pytest.raises(UserNotFoundError):
@@ -135,7 +135,7 @@ class TestEligibleUsers:
     async def test_system_admin_cannot_update_another_system_admin(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
     ) -> None:
         user = await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
@@ -152,7 +152,7 @@ class TestEligibleUsers:
     async def test_raise_error_on_unknown_users(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
     ) -> None:
         with pytest.raises(UserNotFoundError):
@@ -169,7 +169,7 @@ class TestEmailRow:
     async def test_email_row_is_added(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
         mock_users_delete_cache_system_admin,
     ) -> None:
@@ -215,7 +215,7 @@ class TestDBConstraints:
     async def test_duplicate_email_is_caught(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
         role: UserRole,
         email: str,
@@ -246,7 +246,7 @@ class TestCacheHandling:
     async def test_successful_updating_invalidates_caches(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
         mock_users_delete_cache_system_admin,
     ) -> None:
@@ -271,7 +271,7 @@ class TestSessionInvalidating:
     async def test_successful_updating_invalidates_session(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
         mock_users_delete_cache_system_admin,
     ) -> None:

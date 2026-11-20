@@ -26,7 +26,7 @@ class TestSuccess:
     async def test_successful_user_account_deactivation(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
         mock_users_delete_cache_system_admin,
     ) -> None:
@@ -59,7 +59,7 @@ class TestEligibleUsers:
     async def test_system_admin_cannot_deactivate_another_system_admin_account(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
     ) -> None:
         user = await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
@@ -75,7 +75,7 @@ class TestEligibleUsers:
     async def test_raise_error_on_unknown_users(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
     ) -> None:
         with pytest.raises(UserNotFoundError):
@@ -91,7 +91,7 @@ class TestEligibleStatuses:
     async def test_raise_error_on_inactive_accounts(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
     ) -> None:
         user = await make_user(
@@ -109,7 +109,7 @@ class TestEligibleStatuses:
     async def test_raise_error_on_pending_activation_accounts(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
     ) -> None:
         user = await make_user(
@@ -136,7 +136,7 @@ class TestEligibleStatuses:
     async def test_allow_deactivating_non_inactive_and_pending_activation_accounts(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
         status: UserStatus,
         mock_users_delete_cache_system_admin,
@@ -159,7 +159,7 @@ class TestEmailRow:
     async def test_email_row_is_added(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
         mock_users_delete_cache_system_admin,
     ) -> None:
@@ -193,7 +193,7 @@ class TestCacheHandling:
     async def test_successful_deactivation_invalidates_caches(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
         mock_users_delete_cache_system_admin,
     ) -> None:
@@ -217,7 +217,7 @@ class TestSessionInvalidating:
     async def test_successful_deactivation_invalidates_session(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         system_admin: User,
         mock_users_delete_cache_system_admin,
     ) -> None:

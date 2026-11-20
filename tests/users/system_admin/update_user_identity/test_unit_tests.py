@@ -23,7 +23,7 @@ class TestSuccess:
     async def test_successful_update(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         test_resend_client: AsyncClient,
         system_admin: User,
         mock_send_admin_identity_override_email,
@@ -59,7 +59,7 @@ class TestSuccess:
     async def test_ignores_unset_fields(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         test_resend_client: AsyncClient,
         system_admin: User,
         mock_send_admin_identity_override_email,
@@ -88,7 +88,7 @@ class TestSuccess:
     async def test_raises_one_required_fields_with_null_values(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         test_resend_client: AsyncClient,
         system_admin: User,
     ) -> None:
@@ -109,7 +109,7 @@ class TestSuccess:
     async def test_nothing_changes_if_payload_is_empty(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         test_resend_client: AsyncClient,
         system_admin: User,
         mock_send_admin_identity_override_email,
@@ -147,7 +147,7 @@ class TestSuccess:
     async def test_nothing_changes_if_current_values_are_provided(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         test_resend_client: AsyncClient,
         system_admin: User,
         mock_send_admin_identity_override_email,
@@ -181,7 +181,7 @@ class TestEligibleUsers:
     async def test_updating_system_admin_is_prevented(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         test_resend_client: AsyncClient,
         system_admin: User,
     ) -> None:
@@ -198,7 +198,7 @@ class TestEligibleUsers:
     async def test_system_admin_cannot_update_another_system_admin(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         test_resend_client: AsyncClient,
         system_admin: User,
     ) -> None:
@@ -217,7 +217,7 @@ class TestEligibleUsers:
     async def test_raise_error_on_unknown_users(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         test_resend_client: AsyncClient,
         system_admin: User,
     ) -> None:
@@ -236,7 +236,7 @@ class TestEmailSending:
     async def test_identity_override_email_is_sent(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         test_resend_client: AsyncClient,
         system_admin: User,
         mock_send_admin_identity_override_email,
@@ -275,7 +275,7 @@ class TestDBConstraints:
     async def test_duplicate_phone_number_is_caught(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         test_resend_client: AsyncClient,
         system_admin: User,
         role: UserRole,
@@ -310,7 +310,7 @@ class TestCacheHandling:
     async def test_successful_updating_calls_delete_cache(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         test_resend_client: AsyncClient,
         system_admin: User,
         mock_send_admin_identity_override_email,

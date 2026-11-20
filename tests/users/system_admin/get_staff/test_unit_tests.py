@@ -39,7 +39,7 @@ class TestSuccess:
     async def test_correct_shape(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         role: UserRole,
         date_of_birth: date,
         phone_number: str,
@@ -93,7 +93,7 @@ class TestCaching:
     async def test_cache_miss_gets_user_from_database_and_sets_cache(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         mock_users_get_cache_system_admin,
         mock_users_set_cache_system_admin,
     ) -> None:
@@ -127,7 +127,7 @@ class TestCaching:
     async def test_cache_hit_returns_cached_response_without_database_query(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         mock_users_get_cache_system_admin,
         mock_users_set_cache_system_admin,
         mocker,
@@ -171,7 +171,7 @@ class TestCaching:
     async def test_cache_hit_with_invalid_data_raises_validation_error(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis,
+        test_redis_client: Redis | None,
         mock_users_get_cache_system_admin,
         mock_users_set_cache_system_admin,
         mocker,
