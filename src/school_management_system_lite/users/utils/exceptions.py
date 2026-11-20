@@ -1,5 +1,4 @@
 from fastapi import status
-from sqlalchemy.exc import IntegrityError
 
 from school_management_system_lite.core.exceptions.handlers import AppException
 

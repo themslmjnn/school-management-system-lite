@@ -4,7 +4,7 @@ from school_management_system_lite.core.email.service import send_email
 
 
 async def send_admin_identity_override_email(
-    resend_client: AsyncClient, to_email: str
+    resend_client: AsyncClient | None, to_email: str
 ) -> None:
     subject = "Your account information has been updated"
 

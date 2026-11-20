@@ -1,3 +1,5 @@
+from httpx import AsyncClient
+
 from school_management_system_lite.core.config import get_settings
 from school_management_system_lite.core.email.service import send_email
 
@@ -108,11 +110,14 @@ def build_admin_account_activation_email() -> tuple[str, str]:
     return subject, html_body
 
 
-async def send_admin_account_activation_email(*, to_email: str) -> None:
+async def send_admin_account_activation_email(
+    resend_client: AsyncClient | None, to_email: str
+) -> None:
     subject, html_body = build_admin_account_activation_email()
 
     await send_email(
-        subject=subject,
-        to_email=to_email,
-        html_body=html_body,
+        resend_client,
+        subject,
+        to_email,
+        html_body,
     )

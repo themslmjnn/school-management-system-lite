@@ -9,8 +9,8 @@ from school_management_system_lite.users.utils.enums import UserRole
 @pytest.fixture
 def valid_user_payload():
     return CreateUserAdmin(
-        first_name="Valid-firstname",
-        last_name="Valid-lastname",
+        first_name="Valid-Firstname",
+        last_name="Valid-Lastname",
         middle_name="Valid-Middlename",
         date_of_birth="2008-05-01",
         address="Valid test address",

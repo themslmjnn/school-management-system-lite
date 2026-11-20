@@ -1,3 +1,5 @@
+from typing import Sequence
+
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -74,7 +76,7 @@ async def paginate(
     stmt: Select,
     skip: int,
     limit: int,
-) -> tuple[list[User], int]:
+) -> tuple[Sequence[User], int]:
 
     count_result = await db_session.execute(
         select(func.count()).select_from(stmt.subquery())
@@ -93,11 +95,11 @@ async def get_users(
     excluded_roles: frozenset[UserRole] | None = None,
     allowed_roles: frozenset[UserRole] | None = None,
     filters: UserFiltersDirector | UserFiltersAdmin,
-    sort_by: str = UserSortField.CREATED_AT,
-    order: str = OrderBy.DESC,
+    sort_by: UserSortField = UserSortField.CREATED_AT,
+    order: OrderBy = OrderBy.DESC,
     skip: int = 0,
     limit: int = 10,
-) -> tuple[list[User], int]:
+) -> tuple[Sequence[User], int]:
     stmt = select(User)
 
     if excluded_roles:

@@ -1,3 +1,5 @@
+from typing import Sequence
+
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,11 +32,11 @@ async def list_users(
     excluded_roles: frozenset[UserRole] | None = None,
     allowed_roles: frozenset[UserRole] | None = None,
     filters: UserFiltersAdmin,
-    sort_by: str = UserSortField.CREATED_AT,
-    order: str = OrderBy.DESC,
+    sort_by: UserSortField = UserSortField.CREATED_AT,
+    order: OrderBy = OrderBy.DESC,
     skip: int = 0,
     limit: int = 10,
-) -> tuple[list[User], int]:
+) -> tuple[Sequence[User], int]:
     stmt = select(User).where(User.role != UserRole.SYSTEM_ADMIN)
 
     if excluded_roles:
