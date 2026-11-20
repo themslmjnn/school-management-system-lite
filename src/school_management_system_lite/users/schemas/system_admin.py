@@ -56,10 +56,11 @@ class CreateUserAdmin(BaseModel):
     @field_validator("middle_name")
     @classmethod
     def _validate_middle_name(cls, middle_name: str | None) -> str | None:
-        if middle_name is None:
-            return None
-
-        return validators.validate_middle_name(middle_name)
+        return (
+            validators.validate_middle_name(middle_name)
+            if middle_name is None
+            else None
+        )
 
     @field_validator("phone_number")
     @classmethod
@@ -86,10 +87,7 @@ class CreateUserAdmin(BaseModel):
     @field_validator("address")
     @classmethod
     def _validate_address(cls, address: str | None) -> str | None:
-        if address is None:
-            return None
-
-        return validators.validate_address(address)
+        return validators.validate_address(address) if address is None else None
 
 
 class UpdateUserIdentityAdmin(BaseModel):
@@ -102,42 +100,37 @@ class UpdateUserIdentityAdmin(BaseModel):
     @field_validator("first_name")
     @classmethod
     def _validate_first_name(cls, first_name: str | None) -> str | None:
-        if first_name is None:
-            return None
-
-        return validators.validate_first_name(first_name)
+        return (
+            validators.validate_first_name(first_name) if first_name is None else None
+        )
 
     @field_validator("last_name")
     @classmethod
     def _validate_last_name(cls, last_name: str | None) -> str | None:
-        if last_name is None:
-            return None
-
-        return validators.validate_last_name(last_name)
+        return validators.validate_last_name(last_name) if last_name is None else None
 
     @field_validator("middle_name")
     @classmethod
     def _validate_middle_name(cls, middle_name: str | None) -> str | None:
-        if middle_name is None:
-            return None
-
-        return validators.validate_middle_name(middle_name)
+        return (
+            validators.validate_middle_name(middle_name)
+            if middle_name is None
+            else None
+        )
 
     @field_validator("phone_number")
     @classmethod
     def _validate_phone_number(cls, phone_number: str | None) -> str | None:
-        if phone_number is None:
-            return None
-
-        return validators.validate_phone_number(phone_number)
+        return (
+            validators.validate_phone_number(phone_number)
+            if phone_number is None
+            else None
+        )
 
     @field_validator("address")
     @classmethod
     def _validate_address(cls, address: str | None) -> str | None:
-        if address is None:
-            return None
-
-        return validators.valdiate_address(address)
+        return validators.validate_address(address) if address is None else None
 
     @model_validator(mode="after")
     def validate_non_nullable_fields(self):
@@ -156,10 +149,7 @@ class UpdateUserEmailAdmin(BaseModel):
     @field_validator("email")
     @classmethod
     def _validate_email(cls, email: str | None) -> str | None:
-        if email is None:
-            return None
-
-        return validators.validate_email(email)
+        return validators.validate_email(email) if email is None else None
 
 
 class UserFiltersAdmin(BaseModel):
