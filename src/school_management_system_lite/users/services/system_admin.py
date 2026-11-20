@@ -326,10 +326,10 @@ async def deactivate_user_account(
     user.status = UserStatus.INACTIVE
 
     user_session = await auth_session_repository.get_by_user_id(db_session, user.id)
-
-    user_session.access_token_version += 1
-    user_session.refresh_token_hash = None
-    user_session.refresh_token_expires_at = None
+    if user_session is not None:
+        user_session.access_token_version += 1
+        user_session.refresh_token_hash = None
+        user_session.refresh_token_expires_at = None
 
     subject, html_body = build_admin_account_deactivation_email()
 

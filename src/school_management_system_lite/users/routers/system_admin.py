@@ -80,7 +80,7 @@ async def update_user_email(
 
 
 @router.patch(
-    "/admin/users/{user_id}/deactivation", status_code=status.HTTP_204_NO_CONTENT
+    "/admin/users/{user_id}/account/deactivate", status_code=status.HTTP_204_NO_CONTENT
 )
 async def deactivate_user_account(
     db_session: db_session_dep,

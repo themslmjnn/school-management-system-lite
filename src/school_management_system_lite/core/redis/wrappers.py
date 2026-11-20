@@ -10,12 +10,12 @@ logger = structlog.get_logger(__name__)
 DEFAULT_CACHE_TTL_SECONDS = 300
 
 
-async def get_cache(redis: Redis | None, key: str) -> Any | None:
-    if redis is None:
+async def get_cache(redis_client: Redis | None, key: str) -> Any | None:
+    if redis_client is None:
         return
 
     try:
-        cached_value = await redis.get(key)
+        cached_value = await redis_client.get(key)
 
     except RedisError as exc:
         logger.warning(
@@ -43,18 +43,18 @@ async def get_cache(redis: Redis | None, key: str) -> Any | None:
 
 
 async def set_cache(
-    redis: Redis,
+    redis_client: Redis,
     key: str,
     value: Any,
     ttl: int = DEFAULT_CACHE_TTL_SECONDS,
 ) -> None:
-    if redis is None or value is None:
+    if redis_client is None or value is None:
         return
 
     payload = json.dumps(value)
 
     try:
-        await redis.set(key, payload, ex=ttl)
+        await redis_client.set(key, payload, ex=ttl)
 
     except RedisError as exc:
         logger.warning(
@@ -64,12 +64,12 @@ async def set_cache(
         )
 
 
-async def delete_cache(redis: Redis | None, *keys: str) -> None:
-    if redis is None or not keys:
+async def delete_cache(redis_client: Redis | None, *keys: str) -> None:
+    if redis_client is None or not keys:
         return
 
     try:
-        await redis.delete(*keys)
+        await redis_client.delete(*keys)
 
     except RedisError as exc:
         logger.warning(

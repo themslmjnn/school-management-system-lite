@@ -37,7 +37,7 @@ class UserAlreadyActiveError(AppException):
 
 class UserPendingActivationError(AppException):
     status_code = status.HTTP_409_CONFLICT
-    detail = "User status is pending activation"
+    detail = "Account status is pending activation"
     error_code = "USER_PENDING_ACTIVATION"
 
 

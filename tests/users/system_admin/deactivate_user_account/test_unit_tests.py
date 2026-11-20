@@ -7,33 +7,33 @@ from school_management_system_lite.auth.repositories import (
 )
 from school_management_system_lite.core.enums import OrderBy
 from school_management_system_lite.core.redis.cache_keys import UsersCacheKeys
+from school_management_system_lite.emails import repository as email_repository
 from school_management_system_lite.emails.enums import EmailStatus, EmailType
-from school_management_system_lite.emails.repository import EmailRepository
 from school_management_system_lite.users.models import User
 from school_management_system_lite.users.services import (
     system_admin as user_service_admin,
 )
-from school_management_system_lite.users.utils.enums import UserStatus
+from school_management_system_lite.users.utils.enums import UserRole, UserStatus
 from school_management_system_lite.users.utils.exceptions import (
     UserAlreadyInactiveError,
     UserNotFoundError,
     UserPendingActivationError,
 )
-from tests.factories import make_system_admin, make_teacher
+from tests.factories import make_user
 
 
 class TestSuccess:
     async def test_successful_user_account_deactivation(
         self,
         test_db_session: AsyncSession,
-        redis_client: Redis,
+        test_redis_client: Redis,
         system_admin: User,
         mock_users_delete_cache_system_admin,
     ) -> None:
-        user = await make_teacher(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.TEACHER)
 
         await user_service_admin.deactivate_user_account(
-            test_db_session, redis_client, system_admin.id, user.id
+            test_db_session, test_redis_client, system_admin.id, user.id
         )
 
         await test_db_session.refresh(user)
@@ -43,36 +43,45 @@ class TestSuccess:
 
 class TestEligibleUsers:
     async def test_deactivating_system_admin_account_is_prevented(
-        self, test_db_session: AsyncSession, redis_client: Redis, system_admin: User
+        self,
+        test_db_session: AsyncSession,
+        test_redis_client: Redis | None,
+        system_admin: User,
     ) -> None:
         with pytest.raises(UserNotFoundError):
             await user_service_admin.deactivate_user_account(
                 test_db_session,
-                redis_client,
+                test_redis_client,
                 actor_id=system_admin.id,
                 user_id=system_admin.id,
             )
 
     async def test_system_admin_cannot_deactivate_another_system_admin_account(
-        self, test_db_session: AsyncSession, redis_client: Redis, system_admin: User
+        self,
+        test_db_session: AsyncSession,
+        test_redis_client: Redis,
+        system_admin: User,
     ) -> None:
-        user = await make_system_admin(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
 
         with pytest.raises(UserNotFoundError):
             await user_service_admin.deactivate_user_account(
                 test_db_session,
-                redis_client,
+                test_redis_client,
                 system_admin.id,
                 user.id,
             )
 
     async def test_raise_error_on_unknown_users(
-        self, test_db_session: AsyncSession, redis_client: Redis, system_admin: User
+        self,
+        test_db_session: AsyncSession,
+        test_redis_client: Redis,
+        system_admin: User,
     ) -> None:
         with pytest.raises(UserNotFoundError):
             await user_service_admin.deactivate_user_account(
                 test_db_session,
-                redis_client,
+                test_redis_client,
                 system_admin.id,
                 999999,
             )
@@ -80,27 +89,37 @@ class TestEligibleUsers:
 
 class TestEligibleStatuses:
     async def test_raise_error_on_inactive_accounts(
-        self, test_db_session: AsyncSession, redis_client: Redis, system_admin: User
+        self,
+        test_db_session: AsyncSession,
+        test_redis_client: Redis,
+        system_admin: User,
     ) -> None:
-        user = await make_teacher(test_db_session, status=UserStatus.INACTIVE)
+        user = await make_user(
+            test_db_session, role=UserRole.TEACHER, status=UserStatus.INACTIVE
+        )
 
         with pytest.raises(UserAlreadyInactiveError):
             await user_service_admin.deactivate_user_account(
                 test_db_session,
-                redis_client,
+                test_redis_client,
                 system_admin.id,
                 user.id,
             )
 
     async def test_raise_error_on_pending_activation_accounts(
-        self, test_db_session: AsyncSession, redis_client: Redis, system_admin: User
+        self,
+        test_db_session: AsyncSession,
+        test_redis_client: Redis,
+        system_admin: User,
     ) -> None:
-        user = await make_teacher(test_db_session, status=UserStatus.PENDING_ACTIVATION)
+        user = await make_user(
+            test_db_session, role=UserRole.TEACHER, status=UserStatus.PENDING_ACTIVATION
+        )
 
         with pytest.raises(UserPendingActivationError):
             await user_service_admin.deactivate_user_account(
                 test_db_session,
-                redis_client,
+                test_redis_client,
                 system_admin.id,
                 user.id,
             )
@@ -117,15 +136,16 @@ class TestEligibleStatuses:
     async def test_allow_deactivating_non_inactive_and_pending_activation_accounts(
         self,
         test_db_session: AsyncSession,
-        redis_client: Redis,
+        test_redis_client: Redis,
         system_admin: User,
         status: UserStatus,
+        mock_users_delete_cache_system_admin,
     ) -> None:
-        user = await make_teacher(test_db_session, status=status)
+        user = await make_user(test_db_session, role=UserRole.TEACHER, status=status)
 
         await user_service_admin.deactivate_user_account(
             test_db_session,
-            redis_client,
+            test_redis_client,
             system_admin.id,
             user.id,
         )
@@ -139,19 +159,20 @@ class TestEmailRow:
     async def test_email_row_is_added(
         self,
         test_db_session: AsyncSession,
-        redis_client: Redis,
+        test_redis_client: Redis,
         system_admin: User,
+        mock_users_delete_cache_system_admin,
     ) -> None:
-        user = await make_teacher(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.TEACHER)
 
         await user_service_admin.deactivate_user_account(
             test_db_session,
-            redis_client,
+            test_redis_client,
             system_admin.id,
             user.id,
         )
 
-        email_rows = await EmailRepository.get_by_recipient_email(
+        email_rows = await email_repository.get_by_recipient_email(
             test_db_session, user.email, order_by=OrderBy.DESC
         )
 
@@ -172,21 +193,21 @@ class TestCacheHandling:
     async def test_successful_deactivation_invalidates_caches(
         self,
         test_db_session: AsyncSession,
-        redis_client: Redis,
+        test_redis_client: Redis,
         system_admin: User,
         mock_users_delete_cache_system_admin,
     ) -> None:
-        user = await make_teacher(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.TEACHER)
 
         await user_service_admin.deactivate_user_account(
             test_db_session,
-            redis_client,
+            test_redis_client,
             system_admin.id,
             user.id,
         )
 
         mock_users_delete_cache_system_admin.assert_called_once_with(
-            redis_client,
+            test_redis_client,
             UsersCacheKeys.detailed_response_key_admin(user.id),
             UsersCacheKeys.detailed_response_key_staff(user.id),
         )
@@ -196,11 +217,11 @@ class TestSessionInvalidating:
     async def test_successful_deactivation_invalidates_session(
         self,
         test_db_session: AsyncSession,
-        redis_client: Redis,
+        test_redis_client: Redis,
         system_admin: User,
         mock_users_delete_cache_system_admin,
     ) -> None:
-        user = await make_teacher(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.TEACHER)
 
         user_session_before = await auth_session_repository.get_by_user_id(
             test_db_session, user.id
@@ -209,7 +230,7 @@ class TestSessionInvalidating:
 
         await user_service_admin.deactivate_user_account(
             test_db_session,
-            redis_client,
+            test_redis_client,
             system_admin.id,
             user.id,
         )
