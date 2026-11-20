@@ -167,14 +167,13 @@ async def update_user_identity(
     if user is None:
         raise user_exceptions.UserNotFoundError()
 
-    payload = payload.model_dump(exclude_unset=True)
-    if not payload:
+    if not payload.model_dump(exclude_unset=True):
         return
 
     try:
         is_new_value = False
 
-        for field, value in payload.items():
+        for field, value in payload.model_dump(exclude_unset=True).items():
             if getattr(user, field) != value:
                 setattr(user, field, value)
 
@@ -243,10 +242,10 @@ async def update_user_email(
         user.email = payload.email
 
         user_session = await auth_session_repository.get_by_user_id(db_session, user_id)
-
-        user_session.access_token_version += 1
-        user_session.refresh_token_hash = None
-        user_session.refresh_token_expires_at = None
+        if user_session is not None:
+            user_session.access_token_version += 1
+            user_session.refresh_token_hash = None
+            user_session.refresh_token_expires_at = None
 
         subject, html_body = build_admin_email_override_email(
             user.email,
@@ -284,7 +283,6 @@ async def update_user_email(
     await delete_cache(
         redis_client,
         UsersCacheKeys.detailed_response_key_admin(user_id),
-        UsersCacheKeys.detailed_response_key_staff(user_id),
         UsersCacheKeys.detailed_response_key_self(user_id),
     )
 

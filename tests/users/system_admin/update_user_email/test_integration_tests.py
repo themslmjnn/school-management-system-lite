@@ -6,27 +6,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from school_management_system_lite.users.models import User
 from school_management_system_lite.users.utils.enums import UserRole
 from tests.conftest import make_auth_header
-from tests.factories import (
-    make_director,
-    make_student,
-    make_system_admin,
-    make_teacher,
-    make_user,
-)
+from tests.factories import make_user
 
 
 class TestSuccess:
     async def test_successful_update(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
     ) -> None:
-        user = await make_teacher(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.TEACHER)
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.patch(
+        response = await integration_client.patch(
             f"/admin/users/{user.id}/email",
             headers=header,
             json={"email": "updated_email@gmail.com"},
@@ -41,9 +35,9 @@ class TestSuccess:
 
 class TestAuth:
     async def test_unauthenticated_requests_raise_401(
-        self, client: AsyncClient
+        self, integration_client: AsyncClient
     ) -> None:
-        response = await client.patch(
+        response = await integration_client.patch(
             "/admin/users/9999999/email",
             json={"email": "updated_email@gmail.com"},
         )
@@ -56,14 +50,14 @@ class TestAuth:
     async def test_raises_403_on_non_admins(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         role: UserRole,
     ) -> None:
         user = await make_user(test_db_session, role=role)
 
         header = await make_auth_header(test_db_session, user)
 
-        response = await client.patch(
+        response = await integration_client.patch(
             "/admin/users/9999999/email",
             headers=header,
             json={"email": "updated_email@gmail.com"},
@@ -74,11 +68,14 @@ class TestAuth:
 
 class TestEligibleUsers:
     async def test_updating_system_admin_is_prevented(
-        self, test_db_session: AsyncSession, client: AsyncClient, system_admin: User
+        self,
+        test_db_session: AsyncSession,
+        integration_client: AsyncClient,
+        system_admin: User,
     ) -> None:
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.patch(
+        response = await integration_client.patch(
             f"/admin/users/{system_admin.id}/email",
             headers=header,
             json={"email": "updated_email@gmail.com"},
@@ -87,13 +84,16 @@ class TestEligibleUsers:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_system_admin_cannot_update_another_system_admin(
-        self, test_db_session: AsyncSession, client: AsyncClient, system_admin: User
+        self,
+        test_db_session: AsyncSession,
+        integration_client: AsyncClient,
+        system_admin: User,
     ) -> None:
-        user = await make_system_admin(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.patch(
+        response = await integration_client.patch(
             f"/admin/users/{user.id}/email",
             headers=header,
             json={"email": "updated_email@gmail.com"},
@@ -102,11 +102,14 @@ class TestEligibleUsers:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_raise_error_on_unknown_users(
-        self, test_db_session: AsyncSession, client: AsyncClient, system_admin: User
+        self,
+        test_db_session: AsyncSession,
+        integration_client: AsyncClient,
+        system_admin: User,
     ) -> None:
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.patch(
+        response = await integration_client.patch(
             "/admin/users/999999/email",
             headers=header,
             json={"email": "updated_email@gmail.com"},
@@ -130,20 +133,28 @@ class TestDBConstraints:
     async def test_raises_409_on_duplicate_email(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
         role: UserRole,
         email: str,
     ) -> None:
         user = await make_user(test_db_session, role=role)
 
-        await make_director(test_db_session, email="director_email@gmail.com")
-        await make_teacher(test_db_session, email="teacher_email@gmail.com")
-        await make_student(test_db_session, email="student_email@gmail.com")
+        await make_user(
+            test_db_session,
+            email="director_email@gmail.com",
+            role=UserRole.SYSTEM_ADMIN,
+        )
+        await make_user(
+            test_db_session, email="teacher_email@gmail.com", role=UserRole.TEACHER
+        )
+        await make_user(
+            test_db_session, email="student_email@gmail.com", role=UserRole.STUDENT
+        )
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.patch(
+        response = await integration_client.patch(
             f"/admin/users/{user.id}/email",
             headers=header,
             json={"email": email},

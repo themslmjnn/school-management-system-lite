@@ -1,3 +1,5 @@
+from httpx import AsyncClient
+
 from school_management_system_lite.core.email.service import send_email
 
 
@@ -129,15 +131,17 @@ def build_admin_email_override_email(new_email: str) -> tuple[str, str]:
 
 async def send_admin_email_override_email(
     *,
+    resend_email: AsyncClient | None,
     to_email: str,
     new_email: str,
 ) -> None:
     subject, html_body = build_admin_email_override_email(
-        new_email=new_email,
+        new_email,
     )
 
     await send_email(
-        subject=subject,
-        to_email=to_email,
-        html_body=html_body,
+        resend_email,
+        subject,
+        to_email,
+        html_body,
     )
