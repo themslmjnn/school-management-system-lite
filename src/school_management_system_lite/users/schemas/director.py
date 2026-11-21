@@ -6,6 +6,7 @@ from school_management_system_lite.users.utils.enums import UserStatus
 class UserResponseBaseDirector(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    id: int
     first_name: str
     last_name: str
     middle_name: str | None

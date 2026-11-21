@@ -21,9 +21,7 @@ from school_management_system_lite.users.services import (
 )
 from school_management_system_lite.users.utils.enums import UserSortField
 
-router = APIRouter(
-    tags=["Users - System Admin"],
-)
+router = APIRouter(tags=["Users Module - System Admin"])
 
 
 @router.post(
