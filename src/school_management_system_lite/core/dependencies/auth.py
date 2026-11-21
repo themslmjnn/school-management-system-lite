@@ -92,3 +92,7 @@ require_system_admin = Annotated[
     CurrentUser, Depends(require_roles(UserRole.SYSTEM_ADMIN))
 ]
 require_director = Annotated[CurrentUser, Depends(require_roles(UserRole.DIRECTOR))]
+require_system_admin_and_staff = Annotated[
+    CurrentUser,
+    Depends(require_roles(UserRole.SYSTEM_ADMIN, UserRole.DIRECTOR, UserRole.TEACHER)),
+]
