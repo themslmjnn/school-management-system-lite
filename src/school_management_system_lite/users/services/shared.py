@@ -17,6 +17,9 @@ from school_management_system_lite.users.models.email_changes import UserEmailCh
 from school_management_system_lite.users.repositories import (
     base as user_base_repository,
 )
+from school_management_system_lite.users.repositories import (
+    email_change as email_change_repository,
+)
 from school_management_system_lite.users.schemas import shared as user_schemas_shared
 from school_management_system_lite.users.utils import exceptions as user_exceptions
 from school_management_system_lite.users.utils.constants import STUDENT_ROLE
@@ -77,14 +80,20 @@ async def request_email_change(
         minutes=get_settings().EMAIL_CHANGE_TOKEN_EXPIRES_MINUTES
     )
 
-    db_session.add(
-        UserEmailChange(
-            user_id=user.id,
-            new_email=payload.new_email,
-            email_change_token_hash=email_change_token_hash,
-            email_change_token_expires_at=email_change_token_expires_at,
+    email_change = await email_change_repository.get_by_user_id(db_session, user_id)
+    if email_change is None:
+        db_session.add(
+            UserEmailChange(
+                user_id=user.id,
+                new_email=payload.new_email,
+                email_change_token_hash=email_change_token_hash,
+                email_change_token_expires_at=email_change_token_expires_at,
+            )
         )
-    )
+    else:
+        email_change.new_email = payload.new_email
+        email_change.email_change_token_hash = email_change_token_hash
+        email_change.email_change_token_expires_at = email_change_token_expires_at
 
     subject, html_body = build_email_change_email(
         payload.new_email, raw_email_change_token
