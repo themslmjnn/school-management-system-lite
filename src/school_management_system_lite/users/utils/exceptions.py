@@ -47,10 +47,10 @@ class PasswordResetAlreadyRequestedError(AppException):
     error_code = "PASSWORD_RESET_ALREADY_REQUESTED"
 
 
-class ResendActivationTokenDenied(AppException):
+class ResendActivationEmailDenied(AppException):
     status_code = status.HTTP_409_CONFLICT
-    detail = "Can not resend activation token to non pending activation users"
-    error_code = "RESEND_ACTIVATION_TOKEN_DENIED"
+    detail = "Can not resend activation email to non pending activation users"
+    error_code = "RESEND_ACTIVATION_EMAIL_DENIED"
 
 
 # EXCEPTION HANDLERS

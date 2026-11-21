@@ -10,26 +10,27 @@ from school_management_system_lite.users.models import User
 from school_management_system_lite.users.services import (
     system_admin as user_service_admin,
 )
-from school_management_system_lite.users.utils.enums import UserStatus
+from school_management_system_lite.users.utils.enums import UserRole, UserStatus
 from school_management_system_lite.users.utils.exceptions import (
-    ResendActivationTokenDenied,
+    ResendActivationEmailDenied,
     UserNotFoundError,
 )
-from tests.factories import make_system_admin, make_teacher
+from tests.factories import make_user
 
 
 class TestSuccess:
-    async def test_successfully_resend_activation_token(
+    async def test_successfully_resend_activation_email(
         self,
         test_db_session: AsyncSession,
         system_admin: User,
     ) -> None:
-        user = await make_teacher(
+        user = await make_user(
             test_db_session,
+            role=UserRole.TEACHER,
             status=UserStatus.PENDING_ACTIVATION,
         )
 
-        await user_service_admin.resend_activation_token(
+        await user_service_admin.resend_activation_email(
             test_db_session,
             system_admin.id,
             user.id,
@@ -54,22 +55,23 @@ class TestSuccess:
 
         assert len(email) == 1
 
-        email = email[0]
+        email_row = email[0]
 
-        assert email.recipient_email == user.email
-        assert email.subject is not None
-        assert email.html_body is not None
-        assert email.status == EmailStatus.PENDING
-        assert email.email_type == EmailType.ACCOUNT_ACTIVATION
-        assert email.triggered_by == system_admin.id
+        assert email_row.recipient_email == user.email
+        assert email_row.subject is not None
+        assert email_row.html_body is not None
+        assert email_row.status == EmailStatus.PENDING
+        assert email_row.email_type == EmailType.ACCOUNT_ACTIVATION
+        assert email_row.triggered_by == system_admin.id
 
     async def test_successfully_replace_existing_activation_token(
         self,
         test_db_session: AsyncSession,
         system_admin: User,
     ) -> None:
-        user = await make_teacher(
+        user = await make_user(
             test_db_session,
+            role=UserRole.TEACHER,
             status=UserStatus.PENDING_ACTIVATION,
         )
 
@@ -78,7 +80,7 @@ class TestSuccess:
         )
         old_activation_token_hash = old_activation.activation_token_hash
 
-        await user_service_admin.resend_activation_token(
+        await user_service_admin.resend_activation_email(
             test_db_session,
             system_admin.id,
             user.id,
@@ -111,7 +113,7 @@ class TestEligibleUsers:
         system_admin: User,
     ) -> None:
         with pytest.raises(UserNotFoundError):
-            await user_service_admin.resend_activation_token(
+            await user_service_admin.resend_activation_email(
                 test_db_session,
                 system_admin.id,
                 system_admin.id,
@@ -122,10 +124,10 @@ class TestEligibleUsers:
         test_db_session: AsyncSession,
         system_admin: User,
     ) -> None:
-        user = await make_system_admin(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
 
         with pytest.raises(UserNotFoundError):
-            await user_service_admin.resend_activation_token(
+            await user_service_admin.resend_activation_email(
                 test_db_session,
                 system_admin.id,
                 user.id,
@@ -137,7 +139,7 @@ class TestEligibleUsers:
         system_admin: User,
     ) -> None:
         with pytest.raises(UserNotFoundError):
-            await user_service_admin.resend_activation_token(
+            await user_service_admin.resend_activation_email(
                 test_db_session,
                 system_admin.id,
                 999999,
@@ -161,13 +163,14 @@ class TestEligibleStatuses:
         system_admin: User,
         status: UserStatus,
     ) -> None:
-        user = await make_teacher(
+        user = await make_user(
             test_db_session,
+            role=UserRole.TEACHER,
             status=status,
         )
 
-        with pytest.raises(ResendActivationTokenDenied):
-            await user_service_admin.resend_activation_token(
+        with pytest.raises(ResendActivationEmailDenied):
+            await user_service_admin.resend_activation_email(
                 test_db_session,
                 system_admin.id,
                 user.id,

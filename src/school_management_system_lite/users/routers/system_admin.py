@@ -108,7 +108,7 @@ async def activate_user_account(
     )
 
 
-@router.patch(
+@router.post(
     "/admin/users/{user_id}/password-reset", status_code=status.HTTP_202_ACCEPTED
 )
 async def request_password_reset(
@@ -121,15 +121,15 @@ async def request_password_reset(
     )
 
 
-@router.patch(
-    "/admin/users/{user_id}/resend-activation", status_code=status.HTTP_202_ACCEPTED
+@router.post(
+    "/admin/users/{user_id}/activation-email", status_code=status.HTTP_202_ACCEPTED
 )
-async def resend_activation_token(
+async def resend_activation_email(
     db_session: db_session_dep,
     authenticated_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1)],
 ):
-    await user_service_admin.resend_activation_token(
+    await user_service_admin.resend_activation_email(
         db_session, authenticated_user.user_id, user_id
     )
 

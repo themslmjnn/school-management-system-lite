@@ -7,27 +7,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from school_management_system_lite.users.models import User
 from school_management_system_lite.users.utils.enums import UserRole, UserStatus
 from tests.conftest import make_auth_header
-from tests.factories import make_system_admin, make_teacher, make_user
-
-ENDPOINT = "/admin/users/{}/resend-activation"
+from tests.factories import make_user
 
 
 class TestSuccess:
-    async def test_successfully_resend_activation_token(
+    async def test_successfully_resend_activation_email(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
     ) -> None:
-        user = await make_teacher(
+        user = await make_user(
             test_db_session,
+            role=UserRole.TEACHER,
             status=UserStatus.PENDING_ACTIVATION,
         )
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.patch(
-            ENDPOINT.format(user.id),
+        response = await integration_client.post(
+            f"/admin/users/{user.id}/activation-email",
             headers=header,
         )
 
@@ -37,10 +36,10 @@ class TestSuccess:
 class TestAuth:
     async def test_unauthenticated_requests_raise_401(
         self,
-        client: AsyncClient,
+        integration_client: AsyncClient,
     ) -> None:
-        response = await client.patch(
-            ENDPOINT.format(999999),
+        response = await integration_client.post(
+            "/admin/users/999999/activation-email",
         )
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -56,7 +55,7 @@ class TestAuth:
     async def test_raises_403_on_non_admins(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         role: UserRole,
     ) -> None:
         user = await make_user(
@@ -69,8 +68,8 @@ class TestAuth:
             user,
         )
 
-        response = await client.patch(
-            ENDPOINT.format(999999),
+        response = await integration_client.post(
+            "/admin/users/999999/activation-email",
             headers=header,
         )
 
@@ -78,10 +77,10 @@ class TestAuth:
 
 
 class TestEligibleUsers:
-    async def test_resending_activation_token_for_system_admin_is_prevented(
+    async def test_resending_activation_email_for_system_admin_is_prevented(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
     ) -> None:
         header = await make_auth_header(
@@ -89,28 +88,28 @@ class TestEligibleUsers:
             system_admin,
         )
 
-        response = await client.patch(
-            ENDPOINT.format(system_admin.id),
+        response = await integration_client.post(
+            f"/admin/users/{system_admin.id}/activation-email",
             headers=header,
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_system_admin_cannot_resend_activation_token_for_another_system_admin(
+    async def test_system_admin_cannot_resend_activation_email_for_another_system_admin(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
     ) -> None:
-        user = await make_system_admin(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
 
         header = await make_auth_header(
             test_db_session,
             system_admin,
         )
 
-        response = await client.patch(
-            ENDPOINT.format(user.id),
+        response = await integration_client.post(
+            f"/admin/users/{user.id}/activation-email",
             headers=header,
         )
 
@@ -119,7 +118,7 @@ class TestEligibleUsers:
     async def test_raise_error_on_unknown_users(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
     ) -> None:
         header = await make_auth_header(
@@ -127,8 +126,8 @@ class TestEligibleUsers:
             system_admin,
         )
 
-        response = await client.patch(
-            ENDPOINT.format(999999),
+        response = await integration_client.post(
+            "/admin/users/999999/activation-email",
             headers=header,
         )
 
@@ -149,12 +148,13 @@ class TestEligibleStatuses:
     async def test_raise_error_for_non_pending_activation_accounts(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
         status: UserStatus,
     ) -> None:
-        user = await make_teacher(
+        user = await make_user(
             test_db_session,
+            role=UserRole.TEACHER,
             status=status,
         )
 
@@ -163,8 +163,8 @@ class TestEligibleStatuses:
             system_admin,
         )
 
-        response = await client.patch(
-            ENDPOINT.format(user.id),
+        response = await integration_client.post(
+            f"/admin/users/{user.id}/activation-email",
             headers=header,
         )
 

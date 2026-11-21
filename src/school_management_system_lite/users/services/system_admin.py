@@ -514,7 +514,7 @@ async def request_password_reset(
     )
 
 
-async def resend_activation_token(
+async def resend_activation_email(
     db_session: AsyncSession,
     actor_id: int,
     user_id: int,
@@ -529,13 +529,13 @@ async def resend_activation_token(
 
     if user.status != UserStatus.PENDING_ACTIVATION:
         logger.warning(
-            "resend_activation_token_denied",
-            denial_reason="cannot_resend_activation_token_to_non_pending_activation_user",
+            "resend_activation_email_denied",
+            denial_reason="cannot_resend_activation_email_to_non_pending_activation_user",
             user_id=user.id,
             requested_by=actor_id,
         )
 
-        raise user_exceptions.ResendActivationTokenDenied()
+        raise user_exceptions.ResendActivationEmailDenied()
 
     raw_activation_token, activation_token_hash = generate_token()
 
@@ -573,7 +573,7 @@ async def resend_activation_token(
     await db_session.commit()
 
     logger.info(
-        "activation_token_resent_successfully",
+        "activation_email_resent_successfully",
         user_id=user_id,
         actor_id=actor_id,
     )

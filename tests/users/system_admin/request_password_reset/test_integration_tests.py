@@ -27,7 +27,7 @@ class TestSuccess:
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await integration_client.patch(
+        response = await integration_client.post(
             f"/admin/users/{user.id}/password-reset",
             headers=header,
         )
@@ -39,7 +39,7 @@ class TestAuth:
     async def test_unauthenticated_requests_raise_401(
         self, integration_client: AsyncClient
     ) -> None:
-        response = await integration_client.patch("/admin/users/999999/password-reset")
+        response = await integration_client.post("/admin/users/999999/password-reset")
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -57,7 +57,7 @@ class TestAuth:
 
         header = await make_auth_header(test_db_session, user)
 
-        response = await integration_client.patch(
+        response = await integration_client.post(
             "/admin/users/999999/password-reset",
             headers=header,
         )
@@ -74,7 +74,7 @@ class TestEligibleUsers:
     ) -> None:
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await integration_client.patch(
+        response = await integration_client.post(
             f"/admin/users/{system_admin.id}/password-reset",
             headers=header,
         )
@@ -91,7 +91,7 @@ class TestEligibleUsers:
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await integration_client.patch(
+        response = await integration_client.post(
             f"/admin/users/{user.id}/password-reset",
             headers=header,
         )
@@ -106,7 +106,7 @@ class TestEligibleUsers:
     ) -> None:
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await integration_client.patch(
+        response = await integration_client.post(
             "/admin/users/999999/password-reset",
             headers=header,
         )
@@ -129,7 +129,7 @@ class TestEligibleStatuses:
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await integration_client.patch(
+        response = await integration_client.post(
             f"/admin/users/{user.id}/password-reset",
             headers=header,
         )
@@ -163,7 +163,7 @@ class TestPendingRequests:
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await integration_client.patch(
+        response = await integration_client.post(
             f"/admin/users/{user.id}/password-reset",
             headers=header,
         )
@@ -192,7 +192,7 @@ class TestPendingRequests:
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await integration_client.patch(
+        response = await integration_client.post(
             f"/admin/users/{user.id}/password-reset",
             headers=header,
         )
@@ -224,7 +224,7 @@ class TestExpiredRequests:
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await integration_client.patch(
+        response = await integration_client.post(
             f"/admin/users/{user.id}/password-reset",
             headers=header,
         )
