@@ -10,7 +10,7 @@ from school_management_system_lite.core.config import get_settings
 from school_management_system_lite.core.security import generate_token
 from school_management_system_lite.emails.enums import EmailStatus, EmailType
 from school_management_system_lite.emails.models import Email
-from school_management_system_lite.users.models import User
+from school_management_system_lite.users.models.users import User
 from school_management_system_lite.users.utils.enums import UserRole, UserStatus
 from tests.conftest import make_auth_header
 from tests.factories import make_user

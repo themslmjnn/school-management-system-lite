@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from school_management_system_lite.core.enums import OrderBy
-from school_management_system_lite.users.schemas.system_admin import UserFiltersAdmin
+from school_management_system_lite.users.schemas.director import UserFiltersDirector
 from school_management_system_lite.users.services import (
     director as user_service_director,
 )
@@ -20,7 +20,7 @@ async def test_correct_paginated_shape(test_db_session: AsyncSession) -> None:
         test_db_session,
         skip=0,
         limit=10,
-        filters=UserFiltersAdmin(),
+        filters=UserFiltersDirector(),
         sort_by=UserSortField.CREATED_AT,
         order=OrderBy.DESC,
     )
@@ -42,7 +42,7 @@ async def test_has_more_is_true_when_list_exceeds_limit(
         test_db_session,
         skip=0,
         limit=2,
-        filters=UserFiltersAdmin(),
+        filters=UserFiltersDirector(),
         sort_by=UserSortField.CREATED_AT,
         order=OrderBy.DESC,
     )
@@ -66,7 +66,7 @@ async def test_only_teachers_are_included_in_the_list(
         test_db_session,
         skip=0,
         limit=10,
-        filters=UserFiltersAdmin(),
+        filters=UserFiltersDirector(),
         sort_by=UserSortField.CREATED_AT,
         order=OrderBy.DESC,
     )

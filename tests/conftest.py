@@ -22,7 +22,7 @@ from school_management_system_lite.core.dependencies.resend import get_resend_cl
 from school_management_system_lite.core.redis.client import build_redis_client
 from school_management_system_lite.database.base import Base
 from school_management_system_lite.main import app
-from school_management_system_lite.users.models import User
+from school_management_system_lite.users.models.users import User
 from school_management_system_lite.users.utils.enums import UserRole
 from tests.factories import make_user
 

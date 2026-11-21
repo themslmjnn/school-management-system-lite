@@ -13,7 +13,7 @@ from school_management_system_lite.core.security import generate_token
 from school_management_system_lite.emails import repository as email_repository
 from school_management_system_lite.emails.enums import EmailStatus, EmailType
 from school_management_system_lite.emails.models import Email
-from school_management_system_lite.users.models import User
+from school_management_system_lite.users.models.users import User
 from school_management_system_lite.users.services import (
     system_admin as user_service_admin,
 )

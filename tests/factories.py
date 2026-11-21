@@ -7,7 +7,7 @@ from school_management_system_lite.auth.models.activation import UserActivation
 from school_management_system_lite.auth.models.session import UserSession
 from school_management_system_lite.core.config import get_settings
 from school_management_system_lite.core.security import generate_token, hash_password
-from school_management_system_lite.users.models import User
+from school_management_system_lite.users.models.users import User
 from school_management_system_lite.users.utils.enums import UserRole, UserStatus
 
 _counter = itertools.count(1)

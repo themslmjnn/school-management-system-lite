@@ -39,6 +39,38 @@ async def create_user(
     )
 
 
+@router.get(
+    "/admin/users/staff",
+    response_model=PaginatedResponse[user_schemas_admin.UserResponseBaseAdmin],
+    status_code=status.HTTP_200_OK,
+)
+async def list_staff(
+    db_session: db_session_dep,
+    _authenticated_user: require_system_admin,
+    pagination: pagination_dependency,
+    filters: Annotated[user_schemas_admin.UserFiltersAdmin, Depends()],
+    sort_by: UserSortField = UserSortField.CREATED_AT,
+    order: OrderBy = OrderBy.DESC,
+):
+    return await user_service_admin.list_staff(
+        db_session, pagination.skip, pagination.limit, filters, sort_by, order
+    )
+
+
+@router.get(
+    "/admin/users/staff/{user_id}",
+    response_model=user_schemas_admin.UserResponseDetailedAdmin,
+    status_code=status.HTTP_200_OK,
+)
+async def get_staff(
+    db_session: db_session_dep,
+    redis_client: redis_client_dep,
+    _authenticated_user: require_system_admin,
+    user_id: Annotated[int, Path(ge=1)],
+):
+    return await user_service_admin.get_staff(db_session, redis_client, user_id)
+
+
 @router.patch(
     "/admin/users/{user_id}/identity",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -130,35 +162,3 @@ async def resend_activation_email(
     await user_service_admin.resend_activation_email(
         db_session, authenticated_user.user_id, user_id
     )
-
-
-@router.get(
-    "/admin/users/staff",
-    response_model=PaginatedResponse[user_schemas_admin.UserResponseBaseAdmin],
-    status_code=status.HTTP_200_OK,
-)
-async def list_staff(
-    db_session: db_session_dep,
-    _authenticated_user: require_system_admin,
-    pagination: pagination_dependency,
-    filters: Annotated[user_schemas_admin.UserFiltersAdmin, Depends()],
-    sort_by: UserSortField = UserSortField.CREATED_AT,
-    order: OrderBy = OrderBy.DESC,
-):
-    return await user_service_admin.list_staff(
-        db_session, pagination.skip, pagination.limit, filters, sort_by, order
-    )
-
-
-@router.get(
-    "/admin/users/staff/{user_id}",
-    response_model=user_schemas_admin.UserResponseDetailedAdmin,
-    status_code=status.HTTP_200_OK,
-)
-async def get_staff(
-    db_session: db_session_dep,
-    redis_client: redis_client_dep,
-    _authenticated_user: require_system_admin,
-    user_id: Annotated[int, Path(ge=1)],
-):
-    return await user_service_admin.get_staff(db_session, redis_client, user_id)

@@ -4,7 +4,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from school_management_system_lite.core.redis.cache_keys import UsersCacheKeys
-from school_management_system_lite.users.models import User
+from school_management_system_lite.users.models.users import User
 from school_management_system_lite.users.schemas.system_admin import (
     UpdateUserIdentityAdmin,
 )

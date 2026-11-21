@@ -43,7 +43,7 @@ async def get_cache(redis_client: Redis | None, key: str) -> Any | None:
 
 
 async def set_cache(
-    redis_client: Redis,
+    redis_client: Redis | None,
     key: str,
     value: Any,
     ttl: int = DEFAULT_CACHE_TTL_SECONDS,

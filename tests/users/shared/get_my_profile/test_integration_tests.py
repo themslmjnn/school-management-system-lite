@@ -5,9 +5,6 @@ from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from school_management_system_lite.auth.utils.tokens import create_access_token
-from school_management_system_lite.core.config import get_settings
-from school_management_system_lite.users.models import User
 from school_management_system_lite.users.utils.enums import UserRole
 from tests.conftest import make_auth_header
 from tests.factories import make_user
