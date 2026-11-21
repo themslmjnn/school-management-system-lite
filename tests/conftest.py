@@ -154,7 +154,7 @@ async def make_auth_header(test_db_session: AsyncSession, user: User) -> dict[st
         test_db_session, user.id
     )
 
-    access_token: str = create_access_token(
+    access_token = create_access_token(
         user_id=user.id,
         role=user.role,
         session_id=user_session.id,
