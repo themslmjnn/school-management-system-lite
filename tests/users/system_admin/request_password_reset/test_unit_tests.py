@@ -17,20 +17,20 @@ from school_management_system_lite.users.models import User
 from school_management_system_lite.users.services import (
     system_admin as user_service_admin,
 )
-from school_management_system_lite.users.utils.enums import UserStatus
+from school_management_system_lite.users.utils.enums import UserRole, UserStatus
 from school_management_system_lite.users.utils.exceptions import (
     PasswordResetAlreadyRequestedError,
     UserNotFoundError,
     UserPendingActivationError,
 )
-from tests.factories import make_student, make_system_admin, make_teacher
+from tests.factories import make_user
 
 
 class TestSuccess:
     async def test_successfully_request_password_reset(
         self, test_db_session: AsyncSession, system_admin: User
     ) -> None:
-        user = await make_student(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.STUDENT)
 
         await user_service_admin.request_password_reset(
             test_db_session, system_admin.id, user.id
@@ -55,19 +55,19 @@ class TestSuccess:
 
         assert len(email) == 1
 
-        email = email[0]
+        email_row = email[0]
 
-        assert email.recipient_email == user.email
-        assert email.subject is not None
-        assert email.html_body is not None
-        assert email.status == EmailStatus.PENDING
-        assert email.email_type == EmailType.ADMIN_PASSWORD_RESET
-        assert email.triggered_by == system_admin.id
+        assert email_row.recipient_email == user.email
+        assert email_row.subject is not None
+        assert email_row.html_body is not None
+        assert email_row.status == EmailStatus.PENDING
+        assert email_row.email_type == EmailType.ADMIN_PASSWORD_RESET
+        assert email_row.triggered_by == system_admin.id
 
     async def test_replace_expired_password_reset_request(
         self, test_db_session: AsyncSession, system_admin: User
     ) -> None:
-        user = await make_teacher(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.TEACHER)
 
         _, old_token_hash = generate_token()
 
@@ -120,7 +120,7 @@ class TestEligibleUsers:
     async def test_system_admin_cannot_create_request_for_another_system_admin_account(
         self, test_db_session: AsyncSession, system_admin: User
     ) -> None:
-        user = await make_system_admin(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
 
         with pytest.raises(UserNotFoundError):
             await user_service_admin.request_password_reset(
@@ -144,7 +144,9 @@ class TestEligibleStatuses:
     async def test_raise_error_on_pending_activation_accounts(
         self, test_db_session: AsyncSession, system_admin: User
     ) -> None:
-        user = await make_teacher(test_db_session, status=UserStatus.PENDING_ACTIVATION)
+        user = await make_user(
+            test_db_session, role=UserRole.TEACHER, status=UserStatus.PENDING_ACTIVATION
+        )
 
         with pytest.raises(UserPendingActivationError):
             await user_service_admin.request_password_reset(
@@ -158,7 +160,7 @@ class TestPendingRequests:
     async def test_raise_error_on_duplicate_requests(
         self, test_db_session: AsyncSession, system_admin: User
     ):
-        user = await make_teacher(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.TEACHER)
 
         _, password_reset_token_hash = generate_token()
 
@@ -185,7 +187,7 @@ class TestPendingRequests:
     async def test_raise_error_on_pending_password_reset_email(
         self, test_db_session: AsyncSession, system_admin: User
     ) -> None:
-        user = await make_teacher(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.TEACHER)
 
         test_db_session.add(
             Email(

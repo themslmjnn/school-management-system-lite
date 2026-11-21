@@ -13,23 +13,21 @@ from school_management_system_lite.emails.models import Email
 from school_management_system_lite.users.models import User
 from school_management_system_lite.users.utils.enums import UserRole, UserStatus
 from tests.conftest import make_auth_header
-from tests.factories import make_system_admin, make_teacher, make_user
-
-ENDPOINT = "/admin/users/{}/password-reset"
+from tests.factories import make_user
 
 
 class TestSuccess:
     async def test_successfully_request_password_reset(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
     ) -> None:
-        user = await make_teacher(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.TEACHER)
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.patch(
+        response = await integration_client.patch(
             f"/admin/users/{user.id}/password-reset",
             headers=header,
         )
@@ -39,9 +37,9 @@ class TestSuccess:
 
 class TestAuth:
     async def test_unauthenticated_requests_raise_401(
-        self, client: AsyncClient
+        self, integration_client: AsyncClient
     ) -> None:
-        response = await client.patch("/admin/users/999999/password-reset")
+        response = await integration_client.patch("/admin/users/999999/password-reset")
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -52,14 +50,14 @@ class TestAuth:
     async def test_raises_403_on_non_admins(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         role: UserRole,
     ) -> None:
         user = await make_user(test_db_session, role=role)
 
         header = await make_auth_header(test_db_session, user)
 
-        response = await client.patch(
+        response = await integration_client.patch(
             "/admin/users/999999/password-reset",
             headers=header,
         )
@@ -68,15 +66,15 @@ class TestAuth:
 
 
 class TestEligibleUsers:
-    async def test_requesting_password_reset_for_system_admin_account_is_prevented(
+    async def test_requesting_password_reset_for_system_admin_is_prevented(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
     ) -> None:
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.patch(
+        response = await integration_client.patch(
             f"/admin/users/{system_admin.id}/password-reset",
             headers=header,
         )
@@ -86,14 +84,14 @@ class TestEligibleUsers:
     async def test_system_admin_cannot_request_password_reset_for_another_system_admin(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
     ) -> None:
-        user = await make_system_admin(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.patch(
+        response = await integration_client.patch(
             f"/admin/users/{user.id}/password-reset",
             headers=header,
         )
@@ -103,12 +101,12 @@ class TestEligibleUsers:
     async def test_raise_error_on_unknown_users(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
     ) -> None:
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.patch(
+        response = await integration_client.patch(
             "/admin/users/999999/password-reset",
             headers=header,
         )
@@ -120,17 +118,18 @@ class TestEligibleStatuses:
     async def test_raise_error_on_pending_activation_accounts(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
     ) -> None:
-        user = await make_teacher(
+        user = await make_user(
             test_db_session,
+            role=UserRole.TEACHER,
             status=UserStatus.PENDING_ACTIVATION,
         )
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.patch(
+        response = await integration_client.patch(
             f"/admin/users/{user.id}/password-reset",
             headers=header,
         )
@@ -142,10 +141,10 @@ class TestPendingRequests:
     async def test_raise_error_on_duplicate_password_reset_request(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
     ) -> None:
-        user = await make_teacher(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.TEACHER)
 
         _, password_reset_token_hash = generate_token()
 
@@ -164,7 +163,7 @@ class TestPendingRequests:
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.patch(
+        response = await integration_client.patch(
             f"/admin/users/{user.id}/password-reset",
             headers=header,
         )
@@ -174,10 +173,10 @@ class TestPendingRequests:
     async def test_raise_error_on_pending_password_reset_email(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
     ) -> None:
-        user = await make_teacher(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.TEACHER)
 
         test_db_session.add(
             Email(
@@ -193,7 +192,7 @@ class TestPendingRequests:
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.patch(
+        response = await integration_client.patch(
             f"/admin/users/{user.id}/password-reset",
             headers=header,
         )
@@ -205,10 +204,10 @@ class TestExpiredRequests:
     async def test_successfully_request_password_reset_for_expired_request(
         self,
         test_db_session: AsyncSession,
-        client: AsyncClient,
+        integration_client: AsyncClient,
         system_admin: User,
     ) -> None:
-        user = await make_teacher(test_db_session)
+        user = await make_user(test_db_session, role=UserRole.TEACHER)
 
         _, password_reset_token_hash = generate_token()
 
@@ -225,7 +224,7 @@ class TestExpiredRequests:
 
         header = await make_auth_header(test_db_session, system_admin)
 
-        response = await client.patch(
+        response = await integration_client.patch(
             f"/admin/users/{user.id}/password-reset",
             headers=header,
         )

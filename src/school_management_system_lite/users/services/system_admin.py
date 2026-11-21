@@ -429,7 +429,7 @@ async def request_password_reset(
     if user.status == UserStatus.PENDING_ACTIVATION:
         logger.warning(
             "password_reset_request_denied",
-            denial_reason="cannot_create_request_for_pending_activation_users",
+            denial_reason="cannot_create_password_reset_request_for_pending_activation_users",
             user_id=user_id,
             requested_by=actor_id,
         )
