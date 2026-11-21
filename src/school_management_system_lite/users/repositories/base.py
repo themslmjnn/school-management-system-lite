@@ -89,7 +89,7 @@ async def paginate(
     return result.scalars().all(), total
 
 
-async def get_users(
+async def list_users(
     db_session: AsyncSession,
     *,
     excluded_roles: frozenset[UserRole] | None = None,
@@ -100,7 +100,7 @@ async def get_users(
     skip: int = 0,
     limit: int = 10,
 ) -> tuple[Sequence[User], int]:
-    stmt = select(User)
+    stmt = select(User).where(User.role != UserRole.SYSTEM_ADMIN)
 
     if excluded_roles:
         stmt = stmt.filter(User.role.not_in(excluded_roles))

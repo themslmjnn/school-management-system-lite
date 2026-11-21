@@ -2,6 +2,7 @@ from school_management_system_lite.users.utils.enums import UserRole
 
 SYSTEM_ADMIN_ROLE = frozenset({UserRole.SYSTEM_ADMIN})
 STAFF_ROLES = frozenset({UserRole.DIRECTOR, UserRole.TEACHER})
+TEACHER_ROLE = frozenset({UserRole.TEACHER})
 
 NAME_MIN_LENGTH = 2
 NAME_MAX_LENGTH = 30
