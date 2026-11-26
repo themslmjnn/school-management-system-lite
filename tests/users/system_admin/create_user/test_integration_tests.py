@@ -1,205 +1,247 @@
-from datetime import date
+import itertools
 
 import pytest
 from fastapi import status
 from httpx import AsyncClient
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from school_management_system_lite.auth.models.activation import UserActivation
+from school_management_system_lite.core.enums import OrderBy
+from school_management_system_lite.database.base import Base
+from school_management_system_lite.emails import repository as email_repository
+from school_management_system_lite.emails.models import Email
 from school_management_system_lite.users.models.users import User
-from school_management_system_lite.users.schemas.system_admin import CreateUserAdmin
+from school_management_system_lite.users.repositories import (
+    base as user_base_repository,
+)
 from school_management_system_lite.users.utils.enums import UserRole, UserStatus
+from school_management_system_lite.users.utils.exceptions import (
+    EmailAlreadyTakenError,
+    PhoneNumberAlreadyTakenError,
+)
 from tests.conftest import make_auth_header
-from tests.factories import make_user
+from tests.factories import make_create_user_payload, make_user
+
+CREATE_USER_URL = "/admin/users"
+
+CREATABLE_ROLES = (UserRole.DIRECTOR, UserRole.TEACHER, UserRole.STUDENT)
+
+EXISTING_AND_NEW_ROLE_PAIRS = [
+    pytest.param(
+        existing_role,
+        new_role,
+        id=f"{existing_role.name.lower()}_exists-{new_role.name.lower()}_new",
+    )
+    for existing_role, new_role in itertools.product(CREATABLE_ROLES, repeat=2)
+]
+
+
+async def _count_rows(db_session: AsyncSession, model: type[Base]) -> int:
+    return await db_session.scalar(select(func.count()).select_from(model)) or 0
 
 
 class TestSuccess:
     @pytest.mark.parametrize(
-        ["role", "date_of_birth", "phone_number", "email"],
-        [
-            (
-                UserRole.DIRECTOR,
-                date(1990, 5, 1),
-                "+992999999999",
-                "valid_director_email@gmail.com",
-            ),
-            (
-                UserRole.TEACHER,
-                date(2000, 5, 1),
-                "+992888888888",
-                "valid_teacher_email@gmail.com",
-            ),
-            (
-                UserRole.STUDENT,
-                date(2010, 5, 1),
-                "+992777777777",
-                "valid_student_email@gmail.com",
-            ),
-        ],
+        "role", CREATABLE_ROLES, ids=[role.name.lower() for role in CREATABLE_ROLES]
     )
-    async def test_successful_registration(
+    async def test_create_user_valid_payload_returns_201_with_user_body(
         self,
         test_db_session: AsyncSession,
         integration_client: AsyncClient,
         system_admin: User,
-        valid_user_payload: CreateUserAdmin,
         role: UserRole,
-        date_of_birth: date,
-        phone_number: str,
-        email: str,
     ) -> None:
-        valid_user_payload.role = role
-        valid_user_payload.date_of_birth = date_of_birth
-        valid_user_payload.phone_number = phone_number
-        valid_user_payload.email = email
-
-        header = await make_auth_header(test_db_session, system_admin)
+        payload = make_create_user_payload(role=role)
+        headers = await make_auth_header(test_db_session, system_admin)
 
         response = await integration_client.post(
-            "/admin/users",
-            headers=header,
-            json=valid_user_payload.model_dump(mode="json"),
+            CREATE_USER_URL, headers=headers, json=payload.model_dump(mode="json")
         )
 
         assert response.status_code == status.HTTP_201_CREATED
 
-        response = response.json()
+        response_body = response.json()
 
-        assert response["id"] is not None
-        assert response["first_name"] == "Valid-Firstname"
-        assert response["last_name"] == "Valid-Lastname"
-        assert response["middle_name"] == "Valid-Middlename"
-        assert response["date_of_birth"] == date_of_birth.isoformat()
-        assert response["address"] == "Valid test address"
-        assert response["phone_number"] == phone_number
-        assert response["email"] == email
-        assert response["role"] == role
-        assert response["status"] == UserStatus.PENDING_ACTIVATION
-        assert response["created_at"] is not None
+        assert response_body["id"] is not None
+        assert response_body["first_name"] == payload.first_name
+        assert response_body["last_name"] == payload.last_name
+        assert response_body["middle_name"] == payload.middle_name
+        assert response_body["date_of_birth"] == payload.date_of_birth.isoformat()
+        assert response_body["address"] == payload.address
+        assert response_body["phone_number"] == payload.phone_number
+        assert response_body["email"] == payload.email
+        assert response_body["role"] == role
+        assert response_body["status"] == UserStatus.PENDING_ACTIVATION
+        assert response_body["created_at"] is not None
+        assert "password_hash" not in response_body
+
+    async def test_create_user_valid_payload_records_calling_admin_as_creator(
+        self,
+        test_db_session: AsyncSession,
+        integration_client: AsyncClient,
+        system_admin: User,
+    ) -> None:
+        payload = make_create_user_payload()
+        headers = await make_auth_header(test_db_session, system_admin)
+
+        response = await integration_client.post(
+            CREATE_USER_URL, headers=headers, json=payload.model_dump(mode="json")
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+
+        created_user = await user_base_repository.get_by_id(
+            test_db_session, response.json()["id"]
+        )
+        email_rows = await email_repository.get_by_recipient_email(
+            test_db_session, payload.email, order_by=OrderBy.DESC
+        )
+
+        assert created_user is not None
+        assert created_user.created_by == system_admin.id
+        assert len(email_rows) == 1
+        assert email_rows[0].triggered_by == system_admin.id
 
 
 class TestAuth:
-    async def test_unauthenticated_requests_raise_401(
-        self, integration_client: AsyncClient, valid_user_payload: CreateUserAdmin
+    async def test_create_user_without_token_returns_401(
+        self, integration_client: AsyncClient
     ) -> None:
+        payload = make_create_user_payload()
+
         response = await integration_client.post(
-            "/admin/users",
-            json=valid_user_payload.model_dump(mode="json"),
+            CREATE_USER_URL, json=payload.model_dump(mode="json")
         )
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     @pytest.mark.parametrize(
-        "role", [UserRole.DIRECTOR, UserRole.TEACHER, UserRole.STUDENT]
+        "role", CREATABLE_ROLES, ids=[role.name.lower() for role in CREATABLE_ROLES]
     )
-    async def test_raises_403_on_non_admins(
+    async def test_create_user_non_admin_role_returns_403(
         self,
         test_db_session: AsyncSession,
         integration_client: AsyncClient,
-        valid_user_payload: CreateUserAdmin,
         role: UserRole,
     ) -> None:
-        user = await make_user(test_db_session, role=role)
-
-        header = await make_auth_header(test_db_session, user)
+        non_admin_user = await make_user(test_db_session, role=role)
+        headers = await make_auth_header(test_db_session, non_admin_user)
+        payload = make_create_user_payload()
 
         response = await integration_client.post(
-            "/admin/users",
-            headers=header,
-            json=valid_user_payload.model_dump(mode="json"),
+            CREATE_USER_URL, headers=headers, json=payload.model_dump(mode="json")
         )
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 class TestDBConstraints:
-    @pytest.mark.parametrize(
-        ["role", "phone_number"],
-        [
-            (UserRole.DIRECTOR, "+992666666666"),
-            (UserRole.DIRECTOR, "+992777777777"),
-            (UserRole.TEACHER, "+992666666666"),
-            (UserRole.TEACHER, "+992888888888"),
-            (UserRole.STUDENT, "+992666666666"),
-            (UserRole.STUDENT, "+992777777777"),
-        ],
-    )
-    async def test_raises_409_on_duplicate_phone_number(
+    @pytest.mark.parametrize(["existing_role", "new_role"], EXISTING_AND_NEW_ROLE_PAIRS)
+    async def test_create_user_duplicate_phone_number_returns_409_with_error_code(
         self,
         test_db_session: AsyncSession,
         integration_client: AsyncClient,
         system_admin: User,
-        valid_user_payload: CreateUserAdmin,
-        role: UserRole,
-        phone_number: str,
+        existing_role: UserRole,
+        new_role: UserRole,
     ) -> None:
-        await make_user(
-            test_db_session, phone_number="+992888888888", role=UserRole.DIRECTOR
+        existing_user = await make_user(test_db_session, role=existing_role)
+        payload = make_create_user_payload(
+            role=new_role, phone_number=existing_user.phone_number
         )
-        await make_user(
-            test_db_session, phone_number="+992777777777", role=UserRole.TEACHER
-        )
-        await make_user(
-            test_db_session, phone_number="+992666666666", role=UserRole.STUDENT
-        )
-
-        valid_user_payload.phone_number = phone_number
-        valid_user_payload.role = role
-
-        if role != UserRole.STUDENT:
-            valid_user_payload.date_of_birth = date(2000, 5, 1)
-
-        header = await make_auth_header(test_db_session, system_admin)
+        headers = await make_auth_header(test_db_session, system_admin)
 
         response = await integration_client.post(
-            "/admin/users",
-            headers=header,
-            json=valid_user_payload.model_dump(mode="json"),
+            CREATE_USER_URL, headers=headers, json=payload.model_dump(mode="json")
         )
 
         assert response.status_code == status.HTTP_409_CONFLICT
+        assert response.json()["error_code"] == PhoneNumberAlreadyTakenError.error_code
 
-    @pytest.mark.parametrize(
-        ["role", "email"],
-        [
-            (UserRole.DIRECTOR, "teacher_email@gmail.com"),
-            (UserRole.DIRECTOR, "student_email@gmail.com"),
-            (UserRole.TEACHER, "director_email@gmail.com"),
-            (UserRole.TEACHER, "student_email@gmail.com"),
-            (UserRole.STUDENT, "director_email@gmail.com"),
-            (UserRole.STUDENT, "teacher_email@gmail.com"),
-        ],
-    )
-    async def test_raises_409_on_duplicate_email(
+    @pytest.mark.parametrize(["existing_role", "new_role"], EXISTING_AND_NEW_ROLE_PAIRS)
+    async def test_create_user_duplicate_email_returns_409_with_error_code(
         self,
         test_db_session: AsyncSession,
         integration_client: AsyncClient,
         system_admin: User,
-        valid_user_payload: CreateUserAdmin,
-        role: UserRole,
-        email: str,
+        existing_role: UserRole,
+        new_role: UserRole,
     ) -> None:
-        await make_user(
-            test_db_session, email="director_email@gmail.com", role=UserRole.DIRECTOR
-        )
-        await make_user(
-            test_db_session, email="teacher_email@gmail.com", role=UserRole.TEACHER
-        )
-        await make_user(
-            test_db_session, email="student_email@gmail.com", role=UserRole.STUDENT
-        )
-
-        valid_user_payload.role = role
-        valid_user_payload.email = email
-
-        if role != UserRole.STUDENT:
-            valid_user_payload.date_of_birth = date(2000, 5, 1)
-
-        header = await make_auth_header(test_db_session, system_admin)
+        existing_user = await make_user(test_db_session, role=existing_role)
+        payload = make_create_user_payload(role=new_role, email=existing_user.email)
+        headers = await make_auth_header(test_db_session, system_admin)
 
         response = await integration_client.post(
-            "/admin/users",
-            headers=header,
-            json=valid_user_payload.model_dump(mode="json"),
+            CREATE_USER_URL, headers=headers, json=payload.model_dump(mode="json")
         )
 
         assert response.status_code == status.HTTP_409_CONFLICT
+        assert response.json()["error_code"] == EmailAlreadyTakenError.error_code
+
+    @pytest.mark.parametrize(
+        ["duplicated_field", "to_formatted_variant", "expected_error_code"],
+        [
+            pytest.param(
+                "email",
+                lambda value: f"  {value.upper()}  ",
+                EmailAlreadyTakenError.error_code,
+                id="email_uppercase_and_padded",
+            ),
+            pytest.param(
+                "phone_number",
+                lambda value: f"{value[:4]} {value[4:7]} {value[7:10]} {value[10:]}",
+                PhoneNumberAlreadyTakenError.error_code,
+                id="phone_number_with_spaces",
+            ),
+        ],
+    )
+    async def test_create_user_duplicate_with_formatting_difference_returns_409(
+        self,
+        test_db_session: AsyncSession,
+        integration_client: AsyncClient,
+        system_admin: User,
+        duplicated_field: str,
+        to_formatted_variant,
+        expected_error_code: str,
+    ) -> None:
+        existing_user = await make_user(test_db_session)
+        request_body = make_create_user_payload().model_dump(mode="json")
+        request_body[duplicated_field] = to_formatted_variant(
+            getattr(existing_user, duplicated_field)
+        )
+        headers = await make_auth_header(test_db_session, system_admin)
+
+        response = await integration_client.post(
+            CREATE_USER_URL, headers=headers, json=request_body
+        )
+
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert response.json()["error_code"] == expected_error_code
+
+
+class TestRoleRestrictions:
+    async def test_create_user_system_admin_role_returns_422_and_creates_nothing(
+        self,
+        test_db_session: AsyncSession,
+        integration_client: AsyncClient,
+        system_admin: User,
+    ) -> None:
+        request_body = make_create_user_payload().model_dump(mode="json")
+        request_body["role"] = UserRole.SYSTEM_ADMIN.value
+        headers = await make_auth_header(test_db_session, system_admin)
+        models = (User, UserActivation, Email)
+        row_counts_before = [
+            await _count_rows(test_db_session, model) for model in models
+        ]
+
+        response = await integration_client.post(
+            CREATE_USER_URL, headers=headers, json=request_body
+        )
+
+        row_counts_after = [
+            await _count_rows(test_db_session, model) for model in models
+        ]
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        assert row_counts_after == row_counts_before
