@@ -2,23 +2,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from school_management_system_lite.users.schemas.system_admin import CreateUserAdmin
-from school_management_system_lite.users.utils.enums import UserRole
-
-
-@pytest.fixture
-def valid_user_payload():
-    return CreateUserAdmin(
-        first_name="Valid-Firstname",
-        last_name="Valid-Lastname",
-        middle_name="Valid-Middlename",
-        date_of_birth="2008-05-01",
-        address="Valid test address",
-        phone_number="+992777777777",
-        email="valid_student_email@gmail.com",
-        role=UserRole.STUDENT,
-    )
-
 
 @pytest.fixture
 def mock_send_admin_identity_override_email(mocker):
