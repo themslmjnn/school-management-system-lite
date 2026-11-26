@@ -1,6 +1,11 @@
+import itertools
+from collections.abc import Awaitable, Callable
+from unittest.mock import AsyncMock
+
 import pytest
-from httpx import AsyncClient
+from pytest_mock import MockerFixture
 from redis.asyncio import Redis
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from school_management_system_lite.core.redis.cache_keys import UsersCacheKeys
@@ -18,320 +23,260 @@ from school_management_system_lite.users.utils.exceptions import (
 )
 from tests.factories import make_user
 
+UNKNOWN_USER_ID = 999999
+
+IDENTITY_FIELDS = (
+    "first_name",
+    "last_name",
+    "middle_name",
+    "address",
+    "phone_number",
+)
+
+NON_ADMIN_ROLES = (UserRole.DIRECTOR, UserRole.TEACHER, UserRole.STUDENT)
+
+EXISTING_AND_TARGET_ROLE_PAIRS = [
+    pytest.param(
+        existing_role,
+        target_role,
+        id=f"{existing_role.name.lower()}_exists-{target_role.name.lower()}_updated",
+    )
+    for existing_role, target_role in itertools.product(NON_ADMIN_ROLES, repeat=2)
+]
+
+UpdateIdentity = Callable[[int, UpdateUserIdentityAdmin], Awaitable[None]]
+
+
+@pytest.fixture
+def update_identity(
+    test_db_session: AsyncSession,
+    test_redis_client: Redis | None,
+    test_resend_client: AsyncMock,
+    system_admin: User,
+) -> UpdateIdentity:
+    async def _update_identity(user_id: int, payload: UpdateUserIdentityAdmin) -> None:
+        await user_service_admin.update_user_identity(
+            test_db_session,
+            test_redis_client,
+            test_resend_client,
+            system_admin.id,
+            user_id,
+            payload,
+        )
+
+    return _update_identity
+
 
 class TestSuccess:
-    async def test_successful_update(
+    async def test_update_identity_with_some_fields_saves_only_sent_fields(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        test_resend_client: AsyncClient,
-        system_admin: User,
-        mock_send_admin_identity_override_email,
-        mock_users_delete_cache_system_admin,
+        update_identity: UpdateIdentity,
+        teacher: User,
+        mocker: MockerFixture,
     ) -> None:
-        user = await make_user(test_db_session, role=UserRole.TEACHER)
+        original_last_name = teacher.last_name
+        original_middle_name = teacher.middle_name
+        original_address = teacher.address
+        commit_spy = mocker.spy(test_db_session, "commit")
 
+        await update_identity(
+            teacher.id,
+            UpdateUserIdentityAdmin(
+                first_name="Updated-Firstname", phone_number="+992111222333"
+            ),
+        )
+
+        commit_spy.assert_called_once()
+
+        await test_db_session.refresh(teacher)
+
+        assert teacher.first_name == "Updated-Firstname"
+        assert teacher.phone_number == "+992111222333"
+        assert teacher.last_name == original_last_name
+        assert teacher.middle_name == original_middle_name
+        assert teacher.address == original_address
+
+    @pytest.mark.parametrize(
+        "sent_fields",
+        [(), IDENTITY_FIELDS],
+        ids=["empty_payload", "current_values"],
+    )
+    async def test_update_identity_without_new_values_has_no_side_effects(
+        self,
+        test_db_session: AsyncSession,
+        update_identity: UpdateIdentity,
+        teacher: User,
+        mocker: MockerFixture,
+        mock_send_admin_identity_override_email: AsyncMock,
+        mock_users_delete_cache_system_admin: AsyncMock,
+        sent_fields: tuple[str, ...],
+    ) -> None:
         payload = UpdateUserIdentityAdmin(
-            first_name="updated-firstname",
-            last_name="updated-lastname",
-            middle_name="updated-middlename",
-            phone_number="+992 111 222 333",
-            address="updated user address",
+            **{field: getattr(teacher, field) for field in sent_fields}
         )
+        commit_spy = mocker.spy(test_db_session, "commit")
 
-        await user_service_admin.update_user_identity(
-            test_db_session,
-            test_redis_client,
-            test_resend_client,
-            system_admin.id,
-            user.id,
-            payload,
-        )
+        await update_identity(teacher.id, payload)
 
-        await test_db_session.refresh(user)
+        commit_spy.assert_not_called()
 
-        assert user.first_name == "Updated-Firstname"
-        assert user.last_name == "Updated-Lastname"
-        assert user.middle_name == "Updated-Middlename"
-        assert user.phone_number == "+992111222333"
-        assert user.address == "updated user address"
-
-    async def test_ignores_unset_fields(
-        self,
-        test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        test_resend_client: AsyncClient,
-        system_admin: User,
-        mock_send_admin_identity_override_email,
-        mock_users_delete_cache_system_admin,
-    ) -> None:
-        user = await make_user(test_db_session, role=UserRole.TEACHER)
-
-        payload = UpdateUserIdentityAdmin(
-            first_name="updated-firstname", phone_number="+992 111 222 333"
-        )
-
-        await user_service_admin.update_user_identity(
-            test_db_session,
-            test_redis_client,
-            test_resend_client,
-            system_admin.id,
-            user.id,
-            payload,
-        )
-
-        await test_db_session.refresh(user)
-
-        assert user.first_name == "Updated-Firstname"
-        assert user.phone_number == "+992111222333"
-
-    async def test_raises_one_required_fields_with_null_values(
-        self,
-        test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        test_resend_client: AsyncClient,
-        system_admin: User,
-    ) -> None:
-        user = await make_user(test_db_session, role=UserRole.TEACHER)
-
-        with pytest.raises(ValueError):
-            await user_service_admin.update_user_identity(
-                test_db_session,
-                test_redis_client,
-                test_resend_client,
-                system_admin.id,
-                user.id,
-                UpdateUserIdentityAdmin(
-                    first_name=None, phone_number="+992 111 222 333"
-                ),
-            )
-
-    async def test_nothing_changes_if_payload_is_empty(
-        self,
-        test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        test_resend_client: AsyncClient,
-        system_admin: User,
-        mock_send_admin_identity_override_email,
-        mock_users_delete_cache_system_admin,
-    ) -> None:
-        user = await make_user(test_db_session, role=UserRole.TEACHER)
-
-        original_values = {
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "middle_name": user.middle_name,
-            "address": user.address,
-            "phone_number": user.phone_number,
-        }
-
-        await user_service_admin.update_user_identity(
-            test_db_session,
-            test_redis_client,
-            test_resend_client,
-            system_admin.id,
-            user.id,
-            UpdateUserIdentityAdmin(),
-        )
-
-        await test_db_session.refresh(user)
-
-        assert user.first_name == original_values["first_name"]
-        assert user.last_name == original_values["last_name"]
-        assert user.middle_name == original_values["middle_name"]
-        assert user.address == original_values["address"]
-        assert user.phone_number == original_values["phone_number"]
-
-        mock_send_admin_identity_override_email.assert_not_called()
-
-    async def test_nothing_changes_if_current_values_are_provided(
-        self,
-        test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        test_resend_client: AsyncClient,
-        system_admin: User,
-        mock_send_admin_identity_override_email,
-        mock_users_delete_cache_system_admin,
-    ) -> None:
-        user = await make_user(test_db_session, role=UserRole.TEACHER)
-
-        original_values = {
-            "first_name": user.first_name,
-            "phone_number": user.phone_number,
-        }
-
-        await user_service_admin.update_user_identity(
-            test_db_session,
-            test_redis_client,
-            test_resend_client,
-            system_admin.id,
-            user.id,
-            UpdateUserIdentityAdmin.model_validate(original_values),
-        )
-
-        await test_db_session.refresh(user)
-
-        assert user.first_name == original_values["first_name"]
-        assert user.phone_number == original_values["phone_number"]
-
+        mock_users_delete_cache_system_admin.assert_not_awaited()
         mock_send_admin_identity_override_email.assert_not_called()
 
 
 class TestEligibleUsers:
-    async def test_updating_system_admin_is_prevented(
+    async def test_update_identity_with_unknown_user_raises_user_not_found(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        test_resend_client: AsyncClient,
-        system_admin: User,
+        update_identity: UpdateIdentity,
+        mocker: MockerFixture,
     ) -> None:
+        commit_spy = mocker.spy(test_db_session, "commit")
+
         with pytest.raises(UserNotFoundError):
-            await user_service_admin.update_user_identity(
-                test_db_session,
-                test_redis_client,
-                test_resend_client,
-                actor_id=system_admin.id,
-                user_id=system_admin.id,
-                payload=UpdateUserIdentityAdmin(),
+            await update_identity(
+                UNKNOWN_USER_ID,
+                UpdateUserIdentityAdmin(first_name="Updated-Firstname"),
             )
 
-    async def test_system_admin_cannot_update_another_system_admin(
+        commit_spy.assert_not_called()
+
+    async def test_update_identity_of_own_admin_account_raises_user_not_found(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        test_resend_client: AsyncClient,
+        update_identity: UpdateIdentity,
         system_admin: User,
     ) -> None:
-        user = await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
+        original_first_name = system_admin.first_name
 
         with pytest.raises(UserNotFoundError):
-            await user_service_admin.update_user_identity(
-                test_db_session,
-                test_redis_client,
-                test_resend_client,
+            await update_identity(
                 system_admin.id,
-                user.id,
-                payload=UpdateUserIdentityAdmin(),
+                UpdateUserIdentityAdmin(first_name="Updated-Firstname"),
             )
 
-    async def test_raise_error_on_unknown_users(
+        await test_db_session.refresh(system_admin)
+        assert system_admin.first_name == original_first_name
+
+    async def test_update_identity_of_another_admin_raises_user_not_found(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        test_resend_client: AsyncClient,
-        system_admin: User,
+        update_identity: UpdateIdentity,
     ) -> None:
+        other_admin = await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
+        original_first_name = other_admin.first_name
+
         with pytest.raises(UserNotFoundError):
-            await user_service_admin.update_user_identity(
-                test_db_session,
-                test_redis_client,
-                test_resend_client,
-                system_admin.id,
-                999999,
-                payload=UpdateUserIdentityAdmin(),
+            await update_identity(
+                other_admin.id,
+                UpdateUserIdentityAdmin(first_name="Updated-Firstname"),
             )
+
+        await test_db_session.refresh(other_admin)
+        assert other_admin.first_name == original_first_name
 
 
 class TestEmailSending:
-    async def test_identity_override_email_is_sent(
+    async def test_update_identity_with_new_value_sends_email_to_user_once(
         self,
-        test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        test_resend_client: AsyncClient,
-        system_admin: User,
-        mock_send_admin_identity_override_email,
-        mock_users_delete_cache_system_admin,
+        update_identity: UpdateIdentity,
+        teacher: User,
+        test_resend_client: AsyncMock,
+        mock_send_admin_identity_override_email: AsyncMock,
     ) -> None:
-        user = await make_user(test_db_session, role=UserRole.TEACHER)
-
-        payload = UpdateUserIdentityAdmin(phone_number="+992111222333")
-
-        await user_service_admin.update_user_identity(
-            test_db_session,
-            test_redis_client,
-            test_resend_client,
-            system_admin.id,
-            user.id,
-            payload,
+        await update_identity(
+            teacher.id, UpdateUserIdentityAdmin(first_name="Updated-Firstname")
         )
 
         mock_send_admin_identity_override_email.assert_called_once_with(
-            test_resend_client, user.email
+            test_resend_client, teacher.email
+        )
+
+
+class TestCacheHandling:
+    async def test_update_identity_with_new_value_deletes_user_cache_keys(
+        self,
+        update_identity: UpdateIdentity,
+        teacher: User,
+        test_redis_client: Redis | None,
+        mock_users_delete_cache_system_admin: AsyncMock,
+    ) -> None:
+        await update_identity(
+            teacher.id, UpdateUserIdentityAdmin(first_name="Updated-Firstname")
+        )
+
+        mock_users_delete_cache_system_admin.assert_awaited_once_with(
+            test_redis_client,
+            UsersCacheKeys.detailed_response_key_admin(teacher.id),
+            UsersCacheKeys.detailed_response_key_staff(teacher.id),
+            UsersCacheKeys.detailed_response_key_self(teacher.id),
         )
 
 
 class TestDBConstraints:
     @pytest.mark.parametrize(
-        ["role", "phone_number"],
-        [
-            (UserRole.DIRECTOR, "+992666666666"),
-            (UserRole.DIRECTOR, "+992777777777"),
-            (UserRole.TEACHER, "+992666666666"),
-            (UserRole.TEACHER, "+992888888888"),
-            (UserRole.STUDENT, "+992666666666"),
-            (UserRole.STUDENT, "+992777777777"),
-        ],
+        ["existing_role", "target_role"], EXISTING_AND_TARGET_ROLE_PAIRS
     )
-    async def test_duplicate_phone_number_is_caught(
+    async def test_update_identity_with_taken_phone_raises_phone_taken_error(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        test_resend_client: AsyncClient,
-        system_admin: User,
-        role: UserRole,
-        phone_number: str,
+        update_identity: UpdateIdentity,
+        mock_send_admin_identity_override_email: AsyncMock,
+        mock_users_delete_cache_system_admin: AsyncMock,
+        existing_role: UserRole,
+        target_role: UserRole,
     ) -> None:
-        user = await make_user(test_db_session, role=role)
+        existing_user = await make_user(test_db_session, role=existing_role)
+        target_user = await make_user(test_db_session, role=target_role)
 
-        await make_user(
-            test_db_session, phone_number="+992888888888", role=UserRole.DIRECTOR
-        )
-        await make_user(
-            test_db_session, phone_number="+992777777777", role=UserRole.TEACHER
-        )
-        await make_user(
-            test_db_session, phone_number="+992666666666", role=UserRole.STUDENT
-        )
+        await test_db_session.commit()
 
-        payload = UpdateUserIdentityAdmin(phone_number=phone_number)
+        original_first_name = target_user.first_name
+        original_phone_number = target_user.phone_number
+        payload = UpdateUserIdentityAdmin(
+            first_name="Updated-Firstname",
+            phone_number=existing_user.phone_number,
+        )
 
         with pytest.raises(PhoneNumberAlreadyTakenError):
-            await user_service_admin.update_user_identity(
-                test_db_session,
-                test_redis_client,
-                test_resend_client,
-                system_admin.id,
-                user.id,
-                payload,
-            )
+            await update_identity(target_user.id, payload)
 
+        await test_db_session.refresh(target_user)
 
-class TestCacheHandling:
-    async def test_successful_updating_calls_delete_cache(
+        assert target_user.first_name == original_first_name
+        assert target_user.phone_number == original_phone_number
+
+        mock_users_delete_cache_system_admin.assert_not_awaited()
+        mock_send_admin_identity_override_email.assert_not_called()
+
+    async def test_update_identity_with_other_integrity_error_rolls_back_and_reraises(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        test_resend_client: AsyncClient,
-        system_admin: User,
-        mock_send_admin_identity_override_email,
-        mock_users_delete_cache_system_admin,
+        update_identity: UpdateIdentity,
+        teacher: User,
+        mocker: MockerFixture,
+        mock_send_admin_identity_override_email: AsyncMock,
+        mock_users_delete_cache_system_admin: AsyncMock,
     ) -> None:
-        user = await make_user(test_db_session, role=UserRole.TEACHER)
+        await test_db_session.commit()
 
-        payload = UpdateUserIdentityAdmin(first_name="updated-firstname")
-
-        await user_service_admin.update_user_identity(
-            test_db_session,
-            test_redis_client,
-            test_resend_client,
-            system_admin.id,
-            user.id,
-            payload,
+        integrity_error = IntegrityError(
+            "UPDATE users", {}, Exception("other constraint")
         )
 
-        mock_users_delete_cache_system_admin.assert_called_once_with(
-            test_redis_client,
-            UsersCacheKeys.detailed_response_key_admin(user.id),
-            UsersCacheKeys.detailed_response_key_staff(user.id),
-            UsersCacheKeys.detailed_response_key_self(user.id),
-        )
+        mocker.patch.object(test_db_session, "commit", side_effect=integrity_error)
+
+        rollback_spy = mocker.spy(test_db_session, "rollback")
+
+        with pytest.raises(IntegrityError) as raised_error:
+            await update_identity(
+                teacher.id, UpdateUserIdentityAdmin(first_name="Updated-Firstname")
+            )
+
+        assert raised_error.value is integrity_error
+
+        rollback_spy.assert_called_once()
+
+        mock_users_delete_cache_system_admin.assert_not_awaited()
+        mock_send_admin_identity_override_email.assert_not_called()
