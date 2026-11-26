@@ -182,8 +182,9 @@ async def update_user_identity(
         if not is_new_value:
             return
 
+        user_email = user.email
+
         await db_session.commit()
-        await db_session.refresh(user)
 
     except IntegrityError as exc:
         await db_session.rollback()
@@ -210,7 +211,7 @@ async def update_user_identity(
     )
 
     send_email_in_background(
-        send_admin_identity_override_email(resend_client, user.email),
+        send_admin_identity_override_email(resend_client, user_email),
         email_type=EmailType.ADMIN_USER_IDENTITY_OVERRIDE,
     )
 

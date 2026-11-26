@@ -91,6 +91,8 @@ class CreateUserAdmin(BaseModel):
 
 
 class UpdateUserIdentityAdmin(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     first_name: str | None = Field(max_length=50, default=None)
     last_name: str | None = Field(max_length=50, default=None)
     middle_name: str | None = Field(max_length=50, default=None)
