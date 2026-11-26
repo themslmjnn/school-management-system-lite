@@ -1,5 +1,6 @@
 import itertools
 from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,7 +9,9 @@ from school_management_system_lite.auth.models.session import UserSession
 from school_management_system_lite.core.config import get_settings
 from school_management_system_lite.core.security import generate_token, hash_password
 from school_management_system_lite.users.models.users import User
+from school_management_system_lite.users.schemas.system_admin import CreateUserAdmin
 from school_management_system_lite.users.utils.enums import UserRole, UserStatus
+from school_management_system_lite.users.utils.helpers import school_today
 
 _counter = itertools.count(1)
 
@@ -72,3 +75,32 @@ async def make_user(
     await test_db_session.flush()
 
     return user
+
+
+def make_create_user_payload(
+    *, role: UserRole = UserRole.STUDENT, **overrides: Any
+) -> CreateUserAdmin:
+    """Build a valid, validated CreateUserAdmin payload for the given role.
+
+    The birth date is derived from today's school date, so the payload
+    never becomes invalid as time passes. Any field can be overridden.
+    """
+
+    n = _next()
+
+    age = 15 if role == UserRole.STUDENT else 35
+
+    fields: dict[str, Any] = {
+        "first_name": "Test-Firstname",
+        "last_name": "Test-Lastname",
+        "middle_name": "Test-Middlename",
+        "date_of_birth": date(school_today().year - age, 6, 15),
+        "address": "Test payload address",
+        "phone_number": f"+992{n:09d}",
+        "email": f"new_user_{n}@example.com",
+        "role": role,
+    }
+
+    fields.update(overrides)
+
+    return CreateUserAdmin.model_validate(fields)
