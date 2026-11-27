@@ -20,8 +20,8 @@ from school_management_system_lite.users.utils.exceptions import (
     EmailAlreadyTakenError,
     PhoneNumberAlreadyTakenError,
 )
-from tests.conftest import make_auth_header
 from tests.factories import make_create_user_payload, make_user
+from tests.helpers import make_auth_header
 
 CREATE_USER_URL = "/admin/users"
 

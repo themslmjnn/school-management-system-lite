@@ -11,8 +11,8 @@ from school_management_system_lite.core.redis.cache_keys import UsersCacheKeys
 from school_management_system_lite.emails import repository as email_repository
 from school_management_system_lite.users.models.user import User
 from school_management_system_lite.users.utils.enums import UserRole
-from tests.conftest import make_auth_header
 from tests.factories import make_user
+from tests.helpers import make_auth_header
 
 pytestmark = pytest.mark.usefixtures("test_redis_client")
 

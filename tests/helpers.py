@@ -9,6 +9,7 @@ from school_management_system_lite.users.models.user import User
 
 settings = get_settings()
 
+
 async def make_auth_header(test_db_session: AsyncSession, user: User) -> dict[str, str]:
     user_session = await auth_session_repository.get_by_user_id(
         test_db_session, user.id
