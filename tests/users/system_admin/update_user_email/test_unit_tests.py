@@ -1,5 +1,11 @@
+import itertools
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock
+
 import pytest
 from redis.asyncio import Redis
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from school_management_system_lite.auth.repositories import (
@@ -16,286 +22,290 @@ from school_management_system_lite.users.schemas.system_admin import (
 from school_management_system_lite.users.services import (
     system_admin as user_service_admin,
 )
-from school_management_system_lite.users.utils.enums import UserRole
+from school_management_system_lite.users.utils.enums import UserRole, UserStatus
 from school_management_system_lite.users.utils.exceptions import (
     EmailAlreadyTakenError,
     UserNotFoundError,
 )
 from tests.factories import make_user
 
+NEW_EMAIL = "updated_email@gmail.com"
+UNKNOWN_USER_ID = 999999
+
+NON_ADMIN_ROLES = (UserRole.DIRECTOR, UserRole.TEACHER, UserRole.STUDENT)
+
+EXISTING_AND_TARGET_ROLE_PAIRS = [
+    pytest.param(
+        existing_role,
+        target_role,
+        id=f"{existing_role.name.lower()}_exists-{target_role.name.lower()}_updated",
+    )
+    for existing_role, target_role in itertools.product(NON_ADMIN_ROLES, repeat=2)
+]
+
+UpdateEmail = Callable[..., Awaitable[None]]
+
+
+@pytest.fixture
+def update_email(test_db_session: AsyncSession, system_admin: User) -> UpdateEmail:
+    system_admin_id = system_admin.id
+
+    async def _update_email(
+        user_id: int,
+        new_email: str = NEW_EMAIL,
+        *,
+        actor_id: int = system_admin_id,
+        redis_client: Redis | None = None,
+    ) -> None:
+        await user_service_admin.update_user_email(
+            test_db_session,
+            redis_client,
+            actor_id,
+            user_id,
+            UpdateUserEmailAdmin(email=new_email),
+        )
+
+    return _update_email
+
 
 class TestSuccess:
-    async def test_successful_update(
+    @pytest.mark.parametrize(
+        "target_role",
+        NON_ADMIN_ROLES,
+        ids=[role.name.lower() for role in NON_ADMIN_ROLES],
+    )
+    async def test_update_email_for_non_admin_user_saves_new_email(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        system_admin: User,
-        mock_users_delete_cache_system_admin,
+        update_email: UpdateEmail,
+        target_role: UserRole,
     ) -> None:
-        user = await make_user(test_db_session, role=UserRole.TEACHER)
+        target_user = await make_user(test_db_session, role=target_role)
 
-        await user_service_admin.update_user_email(
-            test_db_session,
-            test_redis_client,
-            system_admin.id,
-            user.id,
-            UpdateUserEmailAdmin(email="updated_email@gmail.com"),
-        )
+        await update_email(target_user.id)
 
-        await test_db_session.refresh(user)
+        await test_db_session.refresh(target_user)
 
-        assert user.email == "updated_email@gmail.com"
+        assert target_user.email == NEW_EMAIL
 
-    async def test_nothing_changes_if_payload_is_empty(
+    @pytest.mark.parametrize(
+        "user_status",
+        list(UserStatus),
+        ids=[user_status.name.lower() for user_status in UserStatus],
+    )
+    async def test_update_email_for_user_of_any_status_saves_new_email(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        system_admin: User,
-        mock_users_delete_cache_system_admin,
+        update_email: UpdateEmail,
+        user_status: UserStatus,
     ) -> None:
-        user = await make_user(test_db_session, role=UserRole.TEACHER)
+        target_user = await make_user(test_db_session, status=user_status)
 
-        email_before = user.email
+        await update_email(target_user.id)
 
-        await user_service_admin.update_user_email(
-            test_db_session,
-            test_redis_client,
-            system_admin.id,
-            user.id,
-            UpdateUserEmailAdmin(),
-        )
+        await test_db_session.refresh(target_user)
 
-        await test_db_session.refresh(user)
+        assert target_user.email == NEW_EMAIL
 
-        assert user.email == email_before
-
-    async def test_nothing_changes_if_current_values_are_provided(
+    async def test_update_email_for_user_without_session_saves_new_email(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        system_admin: User,
-        mock_users_delete_cache_system_admin,
+        update_email: UpdateEmail,
     ) -> None:
-        user = await make_user(test_db_session, role=UserRole.TEACHER)
-
-        email_before = user.email
-
-        await user_service_admin.update_user_email(
-            test_db_session,
-            test_redis_client,
-            system_admin.id,
-            user.id,
-            UpdateUserEmailAdmin(email=user.email),
+        target_user = await make_user(test_db_session, role=UserRole.TEACHER)
+        user_session = await auth_session_repository.get_by_user_id(
+            test_db_session, target_user.id
         )
 
-        await test_db_session.refresh(user)
+        assert user_session is not None
 
-        assert user.email == email_before
+        await test_db_session.delete(user_session)
+        await test_db_session.commit()
 
-    async def test_null_value_is_ignored(
+        await update_email(target_user.id)
+
+        await test_db_session.refresh(target_user)
+
+        assert target_user.email == NEW_EMAIL
+
+    async def test_update_email_with_current_email_changes_nothing(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        system_admin: User,
-        mock_users_delete_cache_system_admin,
+        update_email: UpdateEmail,
+        mock_users_delete_cache_system_admin: AsyncMock,
     ) -> None:
-        user = await make_user(test_db_session, role=UserRole.TEACHER)
-
-        email_before = user.email
-
-        await user_service_admin.update_user_email(
-            test_db_session,
-            test_redis_client,
-            system_admin.id,
-            user.id,
-            UpdateUserEmailAdmin(email=None),
+        target_user = await make_user(test_db_session, role=UserRole.TEACHER)
+        user_session = await auth_session_repository.get_by_user_id(
+            test_db_session, target_user.id
         )
 
-        await test_db_session.refresh(user)
+        assert user_session is not None
 
-        assert user.email == email_before
+        original_email = target_user.email
+        original_token_version = user_session.access_token_version
+
+        await update_email(target_user.id, original_email)
+
+        queued_emails = await email_repository.get_by_recipient_email(
+            test_db_session, original_email, order_by=OrderBy.DESC
+        )
+
+        await test_db_session.refresh(target_user)
+        await test_db_session.refresh(user_session)
+
+        assert target_user.email == original_email
+        assert user_session.access_token_version == original_token_version
+        assert len(queued_emails) == 0
+
+        mock_users_delete_cache_system_admin.assert_not_awaited()
 
 
 class TestEligibleUsers:
-    async def test_updating_system_admin_is_prevented(
+    async def test_update_email_for_system_admin_raises_user_not_found_error(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        system_admin: User,
+        update_email: UpdateEmail,
     ) -> None:
-        with pytest.raises(UserNotFoundError):
-            await user_service_admin.update_user_email(
-                test_db_session,
-                test_redis_client,
-                actor_id=system_admin.id,
-                user_id=system_admin.id,
-                payload=UpdateUserEmailAdmin(),
-            )
-
-    async def test_system_admin_cannot_update_another_system_admin(
-        self,
-        test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        system_admin: User,
-    ) -> None:
-        user = await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
+        other_admin = await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
 
         with pytest.raises(UserNotFoundError):
-            await user_service_admin.update_user_email(
-                test_db_session,
-                test_redis_client,
-                system_admin.id,
-                user.id,
-                payload=UpdateUserEmailAdmin(),
-            )
+            await update_email(other_admin.id)
 
-    async def test_raise_error_on_unknown_users(
+    async def test_update_email_for_unknown_user_raises_user_not_found_error(
         self,
-        test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        system_admin: User,
+        update_email: UpdateEmail,
     ) -> None:
         with pytest.raises(UserNotFoundError):
-            await user_service_admin.update_user_email(
-                test_db_session,
-                test_redis_client,
-                system_admin.id,
-                999999,
-                payload=UpdateUserEmailAdmin(),
+            await update_email(UNKNOWN_USER_ID)
+
+
+class TestEmailRows:
+    async def test_update_email_queues_override_email_to_old_and_new_address(
+        self,
+        test_db_session: AsyncSession,
+        system_admin: User,
+        update_email: UpdateEmail,
+    ) -> None:
+        target_user = await make_user(test_db_session, role=UserRole.TEACHER)
+        old_email = target_user.email
+
+        await update_email(target_user.id)
+
+        for recipient_email in (old_email, NEW_EMAIL):
+            queued_emails = await email_repository.get_by_recipient_email(
+                test_db_session, recipient_email, order_by=OrderBy.DESC
             )
 
+            assert len(queued_emails) == 1
 
-class TestEmailRow:
-    async def test_email_row_is_added(
+            queued_email = queued_emails[0]
+
+            assert queued_email.recipient_email == recipient_email
+            assert queued_email.email_type == EmailType.ADMIN_USER_EMAIL_OVERRIDE
+            assert queued_email.status == EmailStatus.PENDING
+            assert queued_email.triggered_by == system_admin.id
+            assert NEW_EMAIL in queued_email.html_body
+
+
+class TestSessionInvalidation:
+    async def test_update_email_for_user_with_session_invalidates_tokens(
+        self,
+        test_db_session: AsyncSession,
+        update_email: UpdateEmail,
+    ) -> None:
+        target_user = await make_user(test_db_session, role=UserRole.TEACHER)
+        user_session = await auth_session_repository.get_by_user_id(
+            test_db_session, target_user.id
+        )
+
+        assert user_session is not None
+
+        user_session.refresh_token_hash = "old-refresh-token-hash"
+        user_session.refresh_token_expires_at = datetime.now(UTC) + timedelta(days=1)
+
+        await test_db_session.commit()
+
+        original_token_version = user_session.access_token_version
+
+        await update_email(target_user.id)
+
+        await test_db_session.refresh(user_session)
+
+        assert user_session.access_token_version == original_token_version + 1
+        assert user_session.refresh_token_hash is None
+        assert user_session.refresh_token_expires_at is None
+
+
+class TestCacheHandling:
+    async def test_update_email_with_new_email_invalidates_user_caches(
         self,
         test_db_session: AsyncSession,
         test_redis_client: Redis | None,
-        system_admin: User,
-        mock_users_delete_cache_system_admin,
+        update_email: UpdateEmail,
+        mock_users_delete_cache_system_admin: AsyncMock,
     ) -> None:
-        user = await make_user(test_db_session, role=UserRole.TEACHER)
+        target_user = await make_user(test_db_session, role=UserRole.TEACHER)
 
-        await user_service_admin.update_user_email(
-            test_db_session,
+        await update_email(target_user.id, redis_client=test_redis_client)
+
+        mock_users_delete_cache_system_admin.assert_awaited_once_with(
             test_redis_client,
-            system_admin.id,
-            user.id,
-            UpdateUserEmailAdmin(email="updated_email@gmail.com"),
+            UsersCacheKeys.detailed_response_key_admin(target_user.id),
+            UsersCacheKeys.detailed_response_key_self(target_user.id),
         )
-
-        email_rows = await email_repository.get_by_recipient_email(
-            test_db_session, user.email, order_by=OrderBy.DESC
-        )
-
-        assert len(email_rows) == 1
-
-        email_row = email_rows[0]
-
-        assert email_row.recipient_email == user.email
-        assert email_row.subject is not None
-        assert email_row.html_body is not None
-        assert email_row.email_type == EmailType.ADMIN_USER_EMAIL_OVERRIDE
-        assert email_row.status == EmailStatus.PENDING
-        assert email_row.scheduled_for is not None
-        assert email_row.triggered_by == system_admin.id
 
 
 class TestDBConstraints:
     @pytest.mark.parametrize(
-        ["role", "email"],
-        [
-            (UserRole.DIRECTOR, "teacher_email@gmail.com"),
-            (UserRole.DIRECTOR, "student_email@gmail.com"),
-            (UserRole.TEACHER, "director_email@gmail.com"),
-            (UserRole.TEACHER, "student_email@gmail.com"),
-            (UserRole.STUDENT, "director_email@gmail.com"),
-            (UserRole.STUDENT, "teacher_email@gmail.com"),
-        ],
+        ["existing_role", "target_role"], EXISTING_AND_TARGET_ROLE_PAIRS
     )
-    async def test_duplicate_email_is_caught(
+    async def test_update_email_with_taken_email_raises_email_taken_error(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        system_admin: User,
-        role: UserRole,
-        email: str,
+        update_email: UpdateEmail,
+        mock_users_delete_cache_system_admin: AsyncMock,
+        existing_role: UserRole,
+        target_role: UserRole,
     ) -> None:
-        user = await make_user(test_db_session, role=role)
+        existing_user = await make_user(test_db_session, role=existing_role)
+        target_user = await make_user(test_db_session, role=target_role)
+        user_session = await auth_session_repository.get_by_user_id(
+            test_db_session, target_user.id
+        )
 
-        await make_user(
-            test_db_session, email="director_email@gmail.com", role=UserRole.DIRECTOR
-        )
-        await make_user(
-            test_db_session, email="teacher_email@gmail.com", role=UserRole.TEACHER
-        )
-        await make_user(
-            test_db_session, email="student_email@gmail.com", role=UserRole.STUDENT
-        )
+        assert user_session is not None
+
+        await test_db_session.commit()
+
+        taken_email = existing_user.email
+        original_email = target_user.email
+        original_token_version = user_session.access_token_version
 
         with pytest.raises(EmailAlreadyTakenError):
-            await user_service_admin.update_user_email(
-                test_db_session,
-                test_redis_client,
-                system_admin.id,
-                user.id,
-                UpdateUserEmailAdmin(email=email),
+            await update_email(target_user.id, taken_email)
+
+        await test_db_session.refresh(target_user)
+        await test_db_session.refresh(user_session)
+
+        assert target_user.email == original_email
+        assert user_session.access_token_version == original_token_version
+
+        for recipient_email in (original_email, taken_email):
+            queued_emails = await email_repository.get_by_recipient_email(
+                test_db_session, recipient_email, order_by=OrderBy.DESC
             )
 
+            assert len(queued_emails) == 0
 
-class TestCacheHandling:
-    async def test_successful_updating_invalidates_caches(
+        mock_users_delete_cache_system_admin.assert_not_awaited()
+
+    async def test_update_email_with_unknown_actor_reraises_integrity_error(
         self,
         test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        system_admin: User,
-        mock_users_delete_cache_system_admin,
+        update_email: UpdateEmail,
     ) -> None:
-        user = await make_user(test_db_session, role=UserRole.TEACHER)
+        target_user = await make_user(test_db_session, role=UserRole.TEACHER)
+        await test_db_session.commit()
 
-        await user_service_admin.update_user_email(
-            test_db_session,
-            test_redis_client,
-            system_admin.id,
-            user.id,
-            UpdateUserEmailAdmin(email="updated_email@gmail.com"),
-        )
-
-        mock_users_delete_cache_system_admin.assert_called_once_with(
-            test_redis_client,
-            UsersCacheKeys.detailed_response_key_admin(user.id),
-            UsersCacheKeys.detailed_response_key_self(user.id),
-        )
-
-
-class TestSessionInvalidating:
-    async def test_successful_updating_invalidates_session(
-        self,
-        test_db_session: AsyncSession,
-        test_redis_client: Redis | None,
-        system_admin: User,
-        mock_users_delete_cache_system_admin,
-    ) -> None:
-        user = await make_user(test_db_session, role=UserRole.TEACHER)
-
-        user_session_before = await auth_session_repository.get_by_user_id(
-            test_db_session, user.id
-        )
-        access_token_version_before = user_session_before.access_token_version
-
-        await user_service_admin.update_user_email(
-            test_db_session,
-            test_redis_client,
-            system_admin.id,
-            user.id,
-            UpdateUserEmailAdmin(email="updated_email@gmail.com"),
-        )
-
-        user_session_after = await auth_session_repository.get_by_user_id(
-            test_db_session, user.id
-        )
-
-        assert (
-            user_session_after.access_token_version == access_token_version_before + 1
-        )
-        assert user_session_after.refresh_token_hash is None
-        assert user_session_after.refresh_token_expires_at is None
+        with pytest.raises(IntegrityError, match="fk_emails_triggered_by_users"):
+            await update_email(target_user.id, actor_id=UNKNOWN_USER_ID)
