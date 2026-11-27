@@ -99,7 +99,7 @@ async def activate_user_account(
     redis_client: redis_client_dep,
     resend_client: resend_client_dep,
     authenticated_user: require_system_admin,
-    user_id: Annotated[int, Path(ge=1)],
+    user_id: Annotated[int, Path(ge=1, le=2147483647)],
 ):
     await user_service_admin.activate_user_account(
         db_session, redis_client, resend_client, authenticated_user.user_id, user_id

@@ -41,6 +41,12 @@ class UserPendingActivationError(AppException):
     error_code = "USER_PENDING_ACTIVATION"
 
 
+class UserGraduatedError(AppException):
+    status_code = status.HTTP_409_CONFLICT
+    detail = "Account status is graduated"
+    error_code = "USER_GRADUATED"
+
+
 class PasswordResetAlreadyRequestedError(AppException):
     status_code = status.HTTP_409_CONFLICT
     detail = "User already has pending password reset requests"

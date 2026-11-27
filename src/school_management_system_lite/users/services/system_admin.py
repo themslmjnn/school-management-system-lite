@@ -386,12 +386,22 @@ async def activate_user_account(
     if user.status == UserStatus.PENDING_ACTIVATION:
         logger.warning(
             "user_account_activation_failed",
-            failure_reason="acount_status_is_pending_activation",
+            failure_reason="account_status_is_pending_activation",
             user_id=user_id,
             requested_by=actor_id,
         )
 
         raise user_exceptions.UserPendingActivationError()
+
+    if user.status == UserStatus.GRADUATED:
+        logger.warning(
+            "user_account_activation_failed",
+            failure_reason="account_status_is_graduated",
+            user_id=user_id,
+            requested_by=actor_id,
+        )
+
+        raise user_exceptions.UserGraduatedError()
 
     if user.status == UserStatus.ACTIVE:
         logger.warning(
