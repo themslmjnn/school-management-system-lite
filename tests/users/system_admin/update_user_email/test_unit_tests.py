@@ -15,7 +15,7 @@ from school_management_system_lite.core.enums import OrderBy
 from school_management_system_lite.core.redis.cache_keys import UsersCacheKeys
 from school_management_system_lite.emails import repository as email_repository
 from school_management_system_lite.emails.enums import EmailStatus, EmailType
-from school_management_system_lite.users.models.users import User
+from school_management_system_lite.users.models.user import User
 from school_management_system_lite.users.schemas.system_admin import (
     UpdateUserEmailAdmin,
 )

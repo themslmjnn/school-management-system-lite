@@ -4,7 +4,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from school_management_system_lite.core.enums import OrderBy
-from school_management_system_lite.users.models.users import User
+from school_management_system_lite.users.models.user import User
 from school_management_system_lite.users.repositories.base import (
     apply_base_filters,
     apply_sorting,

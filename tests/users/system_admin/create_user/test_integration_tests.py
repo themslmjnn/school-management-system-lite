@@ -11,7 +11,7 @@ from school_management_system_lite.core.enums import OrderBy
 from school_management_system_lite.database.base import Base
 from school_management_system_lite.emails import repository as email_repository
 from school_management_system_lite.emails.models import Email
-from school_management_system_lite.users.models.users import User
+from school_management_system_lite.users.models.user import User
 from school_management_system_lite.users.repositories import (
     base as user_base_repository,
 )

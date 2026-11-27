@@ -49,7 +49,7 @@ from school_management_system_lite.core.redis.wrappers import (
 from school_management_system_lite.core.security import generate_token
 from school_management_system_lite.emails.enums import EmailStatus, EmailType
 from school_management_system_lite.emails.models import Email
-from school_management_system_lite.users.models.users import User
+from school_management_system_lite.users.models.user import User
 from school_management_system_lite.users.repositories import (
     base as user_base_repository,
 )
