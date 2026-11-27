@@ -150,12 +150,14 @@ class UpdateUserIdentityAdmin(BaseModel):
 
 
 class UpdateUserEmailAdmin(BaseModel):
-    email: str | None = Field(max_length=50, default=None)
+    model_config = ConfigDict(extra="forbid")
+
+    email: str = Field(max_length=50)
 
     @field_validator("email")
     @classmethod
-    def _validate_email(cls, email: str | None) -> str | None:
-        return validators.validate_email(email) if email is not None else None
+    def _validate_email(cls, email: str) -> str:
+        return validators.validate_email(email)
 
 
 class UserFiltersAdmin(BaseModel):

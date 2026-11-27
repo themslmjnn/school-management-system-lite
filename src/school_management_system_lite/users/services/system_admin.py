@@ -237,8 +237,10 @@ async def update_user_email(
         raise user_exceptions.UserNotFoundError()
 
     try:
-        if user.email == payload.email or payload.email is None:
+        if user.email == payload.email:
             return
+
+        old_email = user.email
 
         user.email = payload.email
 
@@ -254,7 +256,16 @@ async def update_user_email(
 
         db_session.add(
             Email(
-                recipient_email=user.email,
+                recipient_email=payload.email,
+                subject=subject,
+                html_body=html_body,
+                email_type=EmailType.ADMIN_USER_EMAIL_OVERRIDE,
+                triggered_by=actor_id,
+            )
+        )
+        db_session.add(
+            Email(
+                recipient_email=old_email,
                 subject=subject,
                 html_body=html_body,
                 email_type=EmailType.ADMIN_USER_EMAIL_OVERRIDE,
