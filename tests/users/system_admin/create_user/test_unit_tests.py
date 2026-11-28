@@ -40,7 +40,7 @@ EXISTING_AND_NEW_ROLE_PAIRS = [
     for existing_role, new_role in itertools.product(CREATABLE_ROLES, repeat=2)
 ]
 
-ACTIVATION_LINK_TOKEN_PATTERN = re.compile(r"/activation\?token=([A-Za-z0-9_-]+)")
+ACTIVATION_LINK_TOKEN_PATTERN = re.compile(r"/activate\?token=([A-Za-z0-9_-]+)")
 
 
 async def _count_rows(db_session: AsyncSession, model: type[Base]) -> int:

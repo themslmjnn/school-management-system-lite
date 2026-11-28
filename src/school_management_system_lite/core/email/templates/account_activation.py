@@ -11,7 +11,7 @@ def build_account_activation_email(
 ) -> tuple[str, str]:
     settings = get_settings()
 
-    activation_link = f"{settings.APP_URL}/activation?token={raw_activation_token}"
+    activation_link = f"{settings.APP_URL}/activate?token={raw_activation_token}"
 
     subject = "Activate your SMS Lite account"
 
