@@ -11,7 +11,7 @@ class EmailType(StrEnum):
     FORGOT_PASSWORD_REQUEST = "forgot_password_request"
     EMAIL_CHANGE_REQUEST = "email_change_request"
     EMAIL_CHANGE_CONFIRMATION = "email_change_confirmation"
-    PASSWORD_CHANGE_CONFIRMATION = "password_change_confirmation"
+    PASSWORD_CHANGED_NOTIFICATION = "password_changed_notification"
     SELF_PROFILE_UPDATING = "self_profile_updating"
 
 
