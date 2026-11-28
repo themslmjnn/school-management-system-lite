@@ -92,16 +92,16 @@ async def deactivate_user_account(
 
 
 @router.patch(
-    "/admin/users/{user_id}/account/activate", status_code=status.HTTP_204_NO_CONTENT
+    "/admin/users/{user_id}/account/reactivate", status_code=status.HTTP_204_NO_CONTENT
 )
-async def activate_user_account(
+async def reactivate_user_account(
     db_session: db_session_dep,
     redis_client: redis_client_dep,
     resend_client: resend_client_dep,
     authenticated_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1, le=2147483647)],
 ):
-    await user_service_admin.activate_user_account(
+    await user_service_admin.reactivate_user_account(
         db_session, redis_client, resend_client, authenticated_user.user_id, user_id
     )
 
@@ -112,7 +112,7 @@ async def activate_user_account(
 async def request_password_reset(
     db_session: db_session_dep,
     authenticated_user: require_system_admin,
-    user_id: Annotated[int, Path(ge=1)],
+    user_id: Annotated[int, Path(ge=1, le=2147483647)],
 ):
     await user_service_admin.request_password_reset(
         db_session, authenticated_user.user_id, user_id
@@ -125,7 +125,7 @@ async def request_password_reset(
 async def resend_activation_email(
     db_session: db_session_dep,
     authenticated_user: require_system_admin,
-    user_id: Annotated[int, Path(ge=1)],
+    user_id: Annotated[int, Path(ge=1, le=2147483647)],
 ):
     await user_service_admin.resend_activation_email(
         db_session, authenticated_user.user_id, user_id

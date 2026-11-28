@@ -14,7 +14,7 @@ pytestmark = pytest.mark.usefixtures("test_redis_client", "test_resend_client")
 
 
 class TestSuccess:
-    async def test_activate_user_account_inactive_user_returns_204_and_activates(
+    async def test_reactivate_user_account_inactive_user_returns_204_and_activates(
         self,
         test_db_session: AsyncSession,
         integration_client: AsyncClient,
@@ -26,7 +26,7 @@ class TestSuccess:
         auth_header = await make_auth_header(test_db_session, system_admin)
 
         response = await integration_client.patch(
-            f"/admin/users/{target_user.id}/account/activate", headers=auth_header
+            f"/admin/users/{target_user.id}/account/reactivate", headers=auth_header
         )
 
         await test_db_session.refresh(target_user)
@@ -36,7 +36,7 @@ class TestSuccess:
 
 
 class TestAuth:
-    async def test_activate_user_account_without_token_returns_401(
+    async def test_reactivate_user_account_without_token_returns_401(
         self,
         test_db_session: AsyncSession,
         integration_client: AsyncClient,
@@ -46,7 +46,7 @@ class TestAuth:
         )
 
         response = await integration_client.patch(
-            f"/admin/users/{target_user.id}/account/activate"
+            f"/admin/users/{target_user.id}/account/reactivate"
         )
 
         await test_db_session.refresh(target_user)
@@ -60,7 +60,7 @@ class TestAuth:
         [UserRole.DIRECTOR, UserRole.TEACHER, UserRole.STUDENT],
         ids=["director", "teacher", "student"],
     )
-    async def test_activate_user_account_non_admin_returns_403(
+    async def test_reactivate_user_account_non_admin_returns_403(
         self,
         test_db_session: AsyncSession,
         integration_client: AsyncClient,
@@ -73,7 +73,7 @@ class TestAuth:
         auth_header = await make_auth_header(test_db_session, caller)
 
         response = await integration_client.patch(
-            f"/admin/users/{target_user.id}/account/activate", headers=auth_header
+            f"/admin/users/{target_user.id}/account/reactivate", headers=auth_header
         )
 
         await test_db_session.refresh(target_user)
@@ -89,7 +89,7 @@ class TestValidation:
         ["0", "2147483648", "abc"],
         ids=["zero", "above_maximum", "non_integer"],
     )
-    async def test_activate_user_account_invalid_user_id_returns_422(
+    async def test_reactivate_user_account_invalid_user_id_returns_422(
         self,
         test_db_session: AsyncSession,
         integration_client: AsyncClient,
@@ -99,14 +99,14 @@ class TestValidation:
         auth_header = await make_auth_header(test_db_session, system_admin)
 
         response = await integration_client.patch(
-            f"/admin/users/{invalid_user_id}/account/activate", headers=auth_header
+            f"/admin/users/{invalid_user_id}/account/reactivate", headers=auth_header
         )
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 class TestEligibleUsers:
-    async def test_activate_user_account_unknown_user_id_returns_404(
+    async def test_reactivate_user_account_unknown_user_id_returns_404(
         self,
         test_db_session: AsyncSession,
         integration_client: AsyncClient,
@@ -115,7 +115,7 @@ class TestEligibleUsers:
         auth_header = await make_auth_header(test_db_session, system_admin)
 
         response = await integration_client.patch(
-            f"/admin/users/{UNKNOWN_USER_ID}/account/activate", headers=auth_header
+            f"/admin/users/{UNKNOWN_USER_ID}/account/reactivate", headers=auth_header
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
@@ -132,7 +132,7 @@ class TestEligibleStatuses:
         ],
         ids=["already_active", "pending_activation", "graduated"],
     )
-    async def test_activate_user_account_ineligible_status_returns_409(
+    async def test_reactivate_user_account_ineligible_status_returns_409(
         self,
         test_db_session: AsyncSession,
         integration_client: AsyncClient,
@@ -146,7 +146,7 @@ class TestEligibleStatuses:
         auth_header = await make_auth_header(test_db_session, system_admin)
 
         response = await integration_client.patch(
-            f"/admin/users/{target_user.id}/account/activate", headers=auth_header
+            f"/admin/users/{target_user.id}/account/reactivate", headers=auth_header
         )
 
         assert response.status_code == status.HTTP_409_CONFLICT

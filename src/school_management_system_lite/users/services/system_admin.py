@@ -24,7 +24,7 @@ from school_management_system_lite.core.email.templates.account_activation impor
     build_account_activation_email,
 )
 from school_management_system_lite.core.email.templates.admin_account_activation import (
-    send_admin_account_activation_email,
+    send_admin_account_reactivation_email,
 )
 from school_management_system_lite.core.email.templates.admin_account_deactivation import (
     build_admin_account_deactivation_email,
@@ -370,7 +370,7 @@ async def deactivate_user_account(
     )
 
 
-async def activate_user_account(
+async def reactivate_user_account(
     db_session: AsyncSession,
     redis_client: Redis | None,
     resend_client: AsyncClient | None,
@@ -385,7 +385,7 @@ async def activate_user_account(
 
     if user.status == UserStatus.PENDING_ACTIVATION:
         logger.warning(
-            "user_account_activation_failed",
+            "user_account_reactivation_failed",
             failure_reason="account_status_is_pending_activation",
             user_id=user_id,
             requested_by=actor_id,
@@ -395,7 +395,7 @@ async def activate_user_account(
 
     if user.status == UserStatus.GRADUATED:
         logger.warning(
-            "user_account_activation_failed",
+            "user_account_reactivation_failed",
             failure_reason="account_status_is_graduated",
             user_id=user_id,
             requested_by=actor_id,
@@ -405,7 +405,7 @@ async def activate_user_account(
 
     if user.status == UserStatus.ACTIVE:
         logger.warning(
-            "user_account_activation_failed",
+            "user_account_reactivation_failed",
             failure_reason="user_is_already_active",
             user_id=user_id,
             requested_by=actor_id,
@@ -424,12 +424,12 @@ async def activate_user_account(
     )
 
     send_email_in_background(
-        send_admin_account_activation_email(resend_client, user.email),
-        email_type=EmailType.ADMIN_ACCOUNT_ACTIVATION,
+        send_admin_account_reactivation_email(resend_client, user.email),
+        email_type=EmailType.ADMIN_ACCOUNT_REACTIVATION,
     )
 
     logger.info(
-        "user_account_activated",
+        "user_account_reactivated",
         user_id=user_id,
         actor_id=actor_id,
     )

@@ -12,9 +12,9 @@ def mock_send_admin_identity_override_email(mocker):
 
 
 @pytest.fixture
-def mock_send_admin_account_activation_email(mocker):
+def mock_send_admin_account_reactivation_email(mocker):
     return mocker.patch(
-        "school_management_system_lite.users.services.system_admin.send_admin_account_activation_email",
+        "school_management_system_lite.users.services.system_admin.send_admin_account_reactivation_email",
         new_callable=AsyncMock,
     )
 

@@ -4,10 +4,10 @@ from school_management_system_lite.core.config import get_settings
 from school_management_system_lite.core.email.service import send_email
 
 
-def build_admin_account_activation_email() -> tuple[str, str]:
+def build_admin_account_reactivation_email() -> tuple[str, str]:
     login_link = f"{get_settings().APP_URL}/auth/login"
 
-    subject = "Your SMS Lite account has been activated"
+    subject = "Your SMS Lite account has been reactivated"
 
     html_body = f"""
         <!DOCTYPE html>
@@ -110,10 +110,10 @@ def build_admin_account_activation_email() -> tuple[str, str]:
     return subject, html_body
 
 
-async def send_admin_account_activation_email(
+async def send_admin_account_reactivation_email(
     resend_client: AsyncClient | None, to_email: str
 ) -> None:
-    subject, html_body = build_admin_account_activation_email()
+    subject, html_body = build_admin_account_reactivation_email()
 
     await send_email(
         resend_client,
