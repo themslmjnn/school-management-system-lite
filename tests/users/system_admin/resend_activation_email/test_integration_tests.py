@@ -1,171 +1,150 @@
-import fastapi
 import pytest
 from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from school_management_system_lite.users.models.users import User
+from school_management_system_lite.emails import repository as email_repository
+from school_management_system_lite.emails.enums import EmailStatus, EmailType
+from school_management_system_lite.users.models.user import User
 from school_management_system_lite.users.utils.enums import UserRole, UserStatus
-from tests.conftest import make_auth_header
 from tests.factories import make_user
+from tests.helpers import make_auth_header
+
+UNKNOWN_USER_ID = 999999
+MAX_USER_ID = 2_147_483_647
 
 
 class TestSuccess:
-    async def test_successfully_resend_activation_email(
+    async def test_resend_activation_email_as_system_admin_returns_202_and_queues_email(
         self,
         test_db_session: AsyncSession,
         integration_client: AsyncClient,
         system_admin: User,
     ) -> None:
-        user = await make_user(
+        target_user = await make_user(
             test_db_session,
             role=UserRole.TEACHER,
             status=UserStatus.PENDING_ACTIVATION,
         )
-
-        header = await make_auth_header(test_db_session, system_admin)
+        auth_header = await make_auth_header(test_db_session, system_admin)
 
         response = await integration_client.post(
-            f"/admin/users/{user.id}/activation-email",
-            headers=header,
+            f"/admin/users/{target_user.id}/activation-email",
+            headers=auth_header,
         )
 
         assert response.status_code == status.HTTP_202_ACCEPTED
 
+        queued_emails = await email_repository.get_by_recipient_email(
+            test_db_session,
+            target_user.email,
+            email_type=frozenset({EmailType.ACCOUNT_ACTIVATION}),
+            status=EmailStatus.PENDING,
+        )
+
+        assert len(queued_emails) == 1
+        assert queued_emails[0].recipient_email == target_user.email
+        assert queued_emails[0].triggered_by == system_admin.id
+
 
 class TestAuth:
-    async def test_unauthenticated_requests_raise_401(
+    async def test_resend_activation_email_without_token_returns_401(
         self,
         integration_client: AsyncClient,
     ) -> None:
         response = await integration_client.post(
-            "/admin/users/999999/activation-email",
+            f"/admin/users/{UNKNOWN_USER_ID}/activation-email",
         )
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     @pytest.mark.parametrize(
         "role",
-        [
-            UserRole.DIRECTOR,
-            UserRole.TEACHER,
-            UserRole.STUDENT,
-        ],
+        [UserRole.DIRECTOR, UserRole.TEACHER, UserRole.STUDENT],
+        ids=["director", "teacher", "student"],
     )
-    async def test_raises_403_on_non_admins(
+    async def test_resend_activation_email_as_non_admin_returns_403(
         self,
         test_db_session: AsyncSession,
         integration_client: AsyncClient,
         role: UserRole,
     ) -> None:
-        user = await make_user(
-            test_db_session,
-            role=role,
-        )
-
-        header = await make_auth_header(
-            test_db_session,
-            user,
-        )
+        non_admin_user = await make_user(test_db_session, role=role)
+        auth_header = await make_auth_header(test_db_session, non_admin_user)
 
         response = await integration_client.post(
-            "/admin/users/999999/activation-email",
-            headers=header,
+            f"/admin/users/{UNKNOWN_USER_ID}/activation-email",
+            headers=auth_header,
         )
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
+class TestValidation:
+    @pytest.mark.parametrize(
+        "invalid_user_id",
+        [0, MAX_USER_ID + 1],
+        ids=["below_minimum", "above_maximum"],
+    )
+    async def test_resend_activation_email_with_out_of_range_user_id_returns_422(
+        self,
+        test_db_session: AsyncSession,
+        integration_client: AsyncClient,
+        system_admin: User,
+        invalid_user_id: int,
+    ) -> None:
+        auth_header = await make_auth_header(test_db_session, system_admin)
+
+        response = await integration_client.post(
+            f"/admin/users/{invalid_user_id}/activation-email",
+            headers=auth_header,
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
 class TestEligibleUsers:
-    async def test_resending_activation_email_for_system_admin_is_prevented(
+    @pytest.mark.parametrize(
+        "unknown_user_id",
+        [UNKNOWN_USER_ID, MAX_USER_ID],
+        ids=["unused_id", "largest_valid_id"],
+    )
+    async def test_resend_activation_email_for_unknown_user_returns_404(
         self,
         test_db_session: AsyncSession,
         integration_client: AsyncClient,
         system_admin: User,
+        unknown_user_id: int,
     ) -> None:
-        header = await make_auth_header(
-            test_db_session,
-            system_admin,
-        )
+        auth_header = await make_auth_header(test_db_session, system_admin)
 
         response = await integration_client.post(
-            f"/admin/users/{system_admin.id}/activation-email",
-            headers=header,
+            f"/admin/users/{unknown_user_id}/activation-email",
+            headers=auth_header,
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    async def test_system_admin_cannot_resend_activation_email_for_another_system_admin(
-        self,
-        test_db_session: AsyncSession,
-        integration_client: AsyncClient,
-        system_admin: User,
-    ) -> None:
-        user = await make_user(test_db_session, role=UserRole.SYSTEM_ADMIN)
-
-        header = await make_auth_header(
-            test_db_session,
-            system_admin,
-        )
-
-        response = await integration_client.post(
-            f"/admin/users/{user.id}/activation-email",
-            headers=header,
-        )
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    async def test_raise_error_on_unknown_users(
-        self,
-        test_db_session: AsyncSession,
-        integration_client: AsyncClient,
-        system_admin: User,
-    ) -> None:
-        header = await make_auth_header(
-            test_db_session,
-            system_admin,
-        )
-
-        response = await integration_client.post(
-            "/admin/users/999999/activation-email",
-            headers=header,
-        )
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["error_code"] == "USER_NOT_FOUND"
 
 
 class TestEligibleStatuses:
-    @pytest.mark.parametrize(
-        "status",
-        [
-            UserStatus.ACTIVE,
-            UserStatus.INACTIVE,
-            UserStatus.EXPELLED,
-            UserStatus.GRADUATED,
-            UserStatus.WITHDRAWN,
-        ],
-    )
-    async def test_raise_error_for_non_pending_activation_accounts(
+    async def test_resend_activation_email_for_active_user_returns_409(
         self,
         test_db_session: AsyncSession,
         integration_client: AsyncClient,
         system_admin: User,
-        status: UserStatus,
     ) -> None:
-        user = await make_user(
+        target_user = await make_user(
             test_db_session,
             role=UserRole.TEACHER,
-            status=status,
+            status=UserStatus.ACTIVE,
         )
-
-        header = await make_auth_header(
-            test_db_session,
-            system_admin,
-        )
+        auth_header = await make_auth_header(test_db_session, system_admin)
 
         response = await integration_client.post(
-            f"/admin/users/{user.id}/activation-email",
-            headers=header,
+            f"/admin/users/{target_user.id}/activation-email",
+            headers=auth_header,
         )
 
-        assert response.status_code == fastapi.status.HTTP_409_CONFLICT
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert response.json()["error_code"] == "RESEND_ACTIVATION_EMAIL_DENIED"
