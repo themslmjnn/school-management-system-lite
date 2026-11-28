@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from pytest_mock import MockerFixture
 
 
 @pytest.fixture
@@ -20,7 +21,7 @@ def mock_send_admin_account_reactivation_email(mocker):
 
 
 @pytest.fixture
-def mock_send_password_changed_notification(mocker):
+def mock_send_password_changed_notification(mocker: MockerFixture) -> AsyncMock:
     return mocker.patch(
         "school_management_system_lite.users.services.shared.send_password_changed_notification",
         new_callable=AsyncMock,
