@@ -36,3 +36,17 @@ async def request_email_change(
     await user_service_shared.request_email_change(
         db_session, authenticated_user.user_id, payload
     )
+
+
+@router.patch(
+    "/me/password",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def update_my_password(
+    db_session: db_session_dep,
+    authenticated_user: authenticated_user,
+    payload: user_schemas_shared.UpdateMyPassword,
+):
+    await user_service_shared.update_my_password(
+        db_session, authenticated_user, payload
+    )
