@@ -3,6 +3,25 @@ from fastapi import status
 from school_management_system_lite.core.exceptions.handlers import AppException
 
 
+# HTTP400
+class InvalidPasswordError(AppException):
+    status_code = 400
+    detail = "Invalid password"
+    error_code = "INCORRECT_PASSWORD"
+
+
+class IncorrectCurrentPasswordError(AppException):
+    status_code = 400
+    detail = "Incorrect current password"
+    error_code = "INCORRECT_CURRENT_PASSWORD"
+
+
+class SamePasswordError(AppException):
+    status_code = 400
+    detail = "New password should not match current one"
+    error_code = "SAME_PASSWORD"
+
+
 # HTTP404
 class UserNotFoundError(AppException):
     status_code = status.HTTP_404_NOT_FOUND
