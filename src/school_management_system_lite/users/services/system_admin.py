@@ -6,7 +6,6 @@ from redis.asyncio import Redis
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import school_management_system_lite.emails.repository as email_repository
 from school_management_system_lite.auth.models.activation import UserActivation
 from school_management_system_lite.auth.models.password_reset import UserPasswordReset
 from school_management_system_lite.auth.repositories import (
@@ -47,7 +46,7 @@ from school_management_system_lite.core.redis.wrappers import (
     set_cache,
 )
 from school_management_system_lite.core.security import generate_token
-from school_management_system_lite.emails.enums import EmailStatus, EmailType
+from school_management_system_lite.emails.enums import EmailType
 from school_management_system_lite.emails.models import Email
 from school_management_system_lite.users.models.user import User
 from school_management_system_lite.users.repositories import (
@@ -435,7 +434,7 @@ async def reactivate_user_account(
     )
 
 
-async def request_password_reset(
+async def create_password_reset_request(
     db_session: AsyncSession,
     actor_id: int,
     user_id: int,
@@ -460,52 +459,27 @@ async def request_password_reset(
             detail="Can not create password reset request for pending activation users"
         )
 
-    password_reset = await auth_password_reset_repository.get_by_user_id(
-        db_session,
-        user_id,
-    )
-
-    email = await email_repository.get_by_recipient_email(
-        db_session,
-        user.email,
-        email_type=frozenset(
-            {
-                EmailType.ADMIN_PASSWORD_RESET,
-                EmailType.FORGOT_PASSWORD_REQUEST,
-            }
-        ),
-        status=EmailStatus.PENDING,
-        order_by=OrderBy.DESC,
-    )
-
-    has_pending_password_reset_token = (
-        password_reset is not None
-        and password_reset.password_reset_token_hash is not None
-        and password_reset.password_reset_token_expires_at is not None
-        and password_reset.password_reset_token_expires_at > datetime.now(UTC)
-    )
-
-    has_pending_password_reset_email = len(email) != 0
-
-    if has_pending_password_reset_token or has_pending_password_reset_email:
-        logger.warning(
-            "password_reset_request_denied",
-            denial_reason="user_already_has_pending_requests",
-            user_id=user_id,
-            requested_by=actor_id,
-        )
-
-        raise user_exceptions.PasswordResetAlreadyRequestedError()
-
-    if password_reset is not None:
-        await db_session.delete(password_reset)
-        await db_session.flush()
-
     raw_password_reset_token, password_reset_token_hash = generate_token()
 
     password_reset_token_expires_at = datetime.now(UTC) + timedelta(
         minutes=settings.PASSWORD_RESET_TOKEN_EXPIRES_MINUTES
     )
+
+    password_reset = await auth_password_reset_repository.get_by_user_id(
+        db_session,
+        user_id,
+    )
+    if password_reset is None:
+        db_session.add(
+            UserPasswordReset(
+                user_id=user_id,
+                password_reset_token_hash=password_reset_token_hash,
+                password_reset_token_expires_at=password_reset_token_expires_at,
+            )
+        )
+    else:
+        password_reset.password_reset_token_hash = password_reset_token_hash
+        password_reset.password_reset_token_expires_at = password_reset_token_expires_at
 
     subject, html_body = build_admin_password_reset_email(raw_password_reset_token)
 

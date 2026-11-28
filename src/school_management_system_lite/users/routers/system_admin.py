@@ -109,12 +109,12 @@ async def reactivate_user_account(
 @router.post(
     "/admin/users/{user_id}/password-reset", status_code=status.HTTP_202_ACCEPTED
 )
-async def request_password_reset(
+async def create_password_reset_request(
     db_session: db_session_dep,
     authenticated_user: require_system_admin,
     user_id: Annotated[int, Path(ge=1, le=2147483647)],
 ):
-    await user_service_admin.request_password_reset(
+    await user_service_admin.create_password_reset_request(
         db_session, authenticated_user.user_id, user_id
     )
 
