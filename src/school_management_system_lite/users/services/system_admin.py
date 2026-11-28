@@ -484,14 +484,6 @@ async def create_password_reset_request(
     subject, html_body = build_admin_password_reset_email(raw_password_reset_token)
 
     db_session.add(
-        UserPasswordReset(
-            user_id=user.id,
-            password_reset_token_hash=password_reset_token_hash,
-            password_reset_token_expires_at=password_reset_token_expires_at,
-        )
-    )
-
-    db_session.add(
         Email(
             recipient_email=user.email,
             subject=subject,

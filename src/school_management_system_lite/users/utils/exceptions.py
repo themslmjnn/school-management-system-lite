@@ -47,12 +47,6 @@ class UserGraduatedError(AppException):
     error_code = "USER_GRADUATED"
 
 
-class PasswordResetAlreadyRequestedError(AppException):
-    status_code = status.HTTP_409_CONFLICT
-    detail = "User already has pending password reset requests"
-    error_code = "PASSWORD_RESET_ALREADY_REQUESTED"
-
-
 class ResendActivationEmailDenied(AppException):
     status_code = status.HTTP_409_CONFLICT
     detail = "Can not resend activation email to non pending activation users"
