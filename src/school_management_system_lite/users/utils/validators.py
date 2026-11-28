@@ -180,6 +180,13 @@ def validate_address(address: str) -> str | None:
 
 
 def validate_password(password: str) -> str:
+    if len(password.encode()) > user_constants.PASSWORD_MAX_BYTES:
+        raise PydanticCustomError(
+            "password_too_long",
+            f"Password must be at most {user_constants.PASSWORD_MAX_BYTES} bytes. "
+            "Non-English characters take more than one byte",
+        )
+
     if not any(char.isupper() for char in password):
         raise PydanticCustomError(
             "password_no_uppercase",

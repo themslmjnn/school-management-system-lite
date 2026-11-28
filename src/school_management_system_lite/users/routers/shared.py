@@ -6,6 +6,7 @@ from school_management_system_lite.core.dependencies.auth import (
 )
 from school_management_system_lite.core.dependencies.database import db_session_dep
 from school_management_system_lite.core.dependencies.redis import redis_client_dep
+from school_management_system_lite.core.dependencies.resend import resend_client_dep
 from school_management_system_lite.users.schemas import shared as user_schemas_shared
 from school_management_system_lite.users.services import shared as user_service_shared
 
@@ -44,9 +45,10 @@ async def request_email_change(
 )
 async def update_my_password(
     db_session: db_session_dep,
+    resend_client: resend_client_dep,
     authenticated_user: authenticated_user,
     payload: user_schemas_shared.UpdateMyPassword,
 ):
     await user_service_shared.update_my_password(
-        db_session, authenticated_user, payload
+        db_session, resend_client, authenticated_user, payload
     )
