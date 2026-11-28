@@ -20,6 +20,14 @@ def mock_send_admin_account_reactivation_email(mocker):
 
 
 @pytest.fixture
+def mock_send_password_changed_notification(mocker):
+    return mocker.patch(
+        "school_management_system_lite.users.services.shared.send_password_changed_notification",
+        new_callable=AsyncMock,
+    )
+
+
+@pytest.fixture
 def mock_users_get_cache_system_admin(mocker):
     return mocker.patch(
         "school_management_system_lite.users.services.system_admin.get_cache",
